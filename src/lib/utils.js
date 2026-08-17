@@ -20,10 +20,10 @@ export const ROTATING_SECTIONS_FEE = 1000;
 export const EXPERT_REGISTRATION_FEE = 1500;
 
 export const ADMIN_PAYMENT_DEFAULTS = {
-  ccp_name: "BELHOCINE NAWEL",
-  ccp_number: "1620661515",
-  baridimob_name: "BELHOCINE NAWEL",
-  baridimob_number: "079999002206615182",
+  ccp_name: "HAKIM BOUZOURDAZ",
+  ccp_number: "00799999002058843442",
+  baridimob_name: "HAKIM BOUZOURDAZ",
+  baridimob_number: "00799999002058843442",
 };
 
 const ADMIN_PAYMENT_KEY = "app-config:admin-payment";
