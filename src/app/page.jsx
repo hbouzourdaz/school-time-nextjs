@@ -45,7 +45,7 @@ export default function HomePage() {
         <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.4) 0%, transparent 50%)" }} />
         <TimetableGlyph />
         <h1 className="text-3xl md:text-3xl font-extrabold mb-2 relative" style={{ color: "#fff" }}>
-          جدول مدرسي
+        حجز الجداول الزمنية
         </h1>
         <p className="text-sm md:text-base opacity-85 max-w-lg mx-auto relative" style={{ color: "rgba(255,255,255,0.9)" }}>
           نظام إلكتروني لإنشاء وإدارة الجداول الزمنية للمؤسسات التعليمية
