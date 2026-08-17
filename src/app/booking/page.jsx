@@ -504,7 +504,7 @@ export default function BookingFormPage() {
       </Card>
 
       {/* Price + Submit */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white px-4 py-2.5 border-t flex items-center gap-3"
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white px-4 py-2.5 border-t flex items-center gap-3 max-w-lg mx-auto"
            style={{ borderColor: "#F59E0B", boxShadow: "0 -4px 24px rgba(198,138,46,0.18)" }}>
         <PrimaryButton onClick={() => setReviewOpen(true)} disabled={!canSubmit || submitting}
                        className="flex-1 py-4 text-sm whitespace-nowrap">
