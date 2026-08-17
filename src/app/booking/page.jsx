@@ -510,9 +510,10 @@ export default function BookingFormPage() {
                        className="px-6 py-3 text-base whitespace-nowrap">
           مراجعة وإرسال الطلب
         </PrimaryButton>
-        <div className="text-left">
-          <p className="text-xl font-extrabold leading-tight" style={{ color: "#0F3D3E" }}>{formatDZD(totalPrice)}</p>
-          <p className="text-xs" style={{ color: "#8A9188" }}>{totalSections} قسم</p>
+        <div className="rounded-xl px-4 py-2" style={{ backgroundColor: "rgba(198,138,46,0.1)", border: "1px solid rgba(198,138,46,0.3)" }}>
+          <p className="text-sm font-bold" style={{ color: "#C68A2E" }}>التكلفة التقديرية</p>
+          <p className="text-2xl font-extrabold leading-tight" style={{ color: "#0F3D3E" }}>{formatDZD(totalPrice)}</p>
+          <p className="text-xs" style={{ color: "#8A9188" }}>{totalSections} قسم × {formatDZD(PRICE_PER_SECTION)}</p>
         </div>
       </div>
 
