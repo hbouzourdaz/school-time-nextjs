@@ -504,16 +504,16 @@ export default function BookingFormPage() {
       </Card>
 
       {/* Price + Submit */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white px-5 py-3 border-t flex items-center gap-4"
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white px-5 py-3 border-t flex items-center justify-between"
            style={{ borderColor: "#F59E0B", boxShadow: "0 -4px 24px rgba(198,138,46,0.18)" }}>
-        <div className="mr-auto text-left">
-          <p className="text-xl font-extrabold leading-tight" style={{ color: "#0F3D3E" }}>{formatDZD(totalPrice)}</p>
-          <p className="text-xs" style={{ color: "#8A9188" }}>{totalSections} قسم</p>
-        </div>
         <PrimaryButton onClick={() => setReviewOpen(true)} disabled={!canSubmit || submitting}
                        className="px-6 py-3 text-base whitespace-nowrap">
           مراجعة وإرسال الطلب
         </PrimaryButton>
+        <div className="text-left">
+          <p className="text-xl font-extrabold leading-tight" style={{ color: "#0F3D3E" }}>{formatDZD(totalPrice)}</p>
+          <p className="text-xs" style={{ color: "#8A9188" }}>{totalSections} قسم</p>
+        </div>
       </div>
 
       {/* Review Modal */}
