@@ -504,14 +504,14 @@ export default function BookingFormPage() {
       </Card>
 
       {/* Price + Submit */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white px-4 py-2.5 border-t flex items-center justify-between"
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white px-4 py-2.5 border-t flex items-center gap-3"
            style={{ borderColor: "#F59E0B", boxShadow: "0 -4px 24px rgba(198,138,46,0.18)" }}>
         <PrimaryButton onClick={() => setReviewOpen(true)} disabled={!canSubmit || submitting}
-                       className="px-5 py-2.5 text-sm whitespace-nowrap">
+                       className="flex-1 py-2.5 text-sm whitespace-nowrap">
           مراجعة وإرسال الطلب
         </PrimaryButton>
-        <div className="rounded-lg px-3 py-1.5" style={{ backgroundColor: "rgba(198,138,46,0.1)", border: "1px solid rgba(198,138,46,0.3)" }}>
-          <p className="text-xs font-bold" style={{ color: "#C68A2E" }}>التكلفة التقديرية</p>
+        <div className="flex-1 rounded-lg px-3 py-1.5 text-center" style={{ backgroundColor: "rgba(198,138,46,0.1)", border: "1px solid rgba(198,138,46,0.3)" }}>
+          <p className="text-[10px] font-bold" style={{ color: "#C68A2E" }}>التكلفة التقديرية</p>
           <p className="text-lg font-extrabold leading-tight" style={{ color: "#0F3D3E" }}>{formatDZD(totalPrice)}</p>
           <p className="text-[10px]" style={{ color: "#8A9188" }}>{totalSections} قسم × {formatDZD(PRICE_PER_SECTION)}</p>
         </div>
