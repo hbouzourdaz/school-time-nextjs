@@ -54,21 +54,21 @@ export default function HomePage() {
 
       {/* Live Stats */}
       {(stats.total > 0 || stats.active > 0) && (
-        <div className="max-w-4xl mx-auto px-5 -mt-6 relative z-10">
-          <div className="grid grid-cols-3 gap-3 md:gap-5">
+        <div className="max-w-4xl mx-auto px-5 -mt-4 relative z-10">
+          <div className="grid grid-cols-3 gap-2 md:gap-3">
             {[
               { label: "إجمالي الطلبات", value: stats.total, icon: FileText, color: "#0F3D3E" },
               { label: "نشطة حالياً", value: stats.active, icon: Clock, color: "#C68A2E" },
               { label: "مكتملة", value: stats.done, icon: CheckCircle, color: "#3F7859" },
             ].map((s, i) => (
-              <div key={i} className="bg-white rounded-2xl p-4 md:p-6 text-center"
-                   style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.08)", border: `1px solid #DCE2D6` }}>
-                <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center mx-auto mb-2"
+              <div key={i} className="bg-white rounded-xl p-3 md:p-4 text-center"
+                   style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: `1px solid #DCE2D6` }}>
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center mx-auto mb-1.5"
                      style={{ backgroundColor: hexToRgba(s.color, 0.1) }}>
-                  <s.icon size={18} color={s.color} />
+                  <s.icon size={16} color={s.color} />
                 </div>
-                <p className="text-2xl md:text-3xl font-extrabold" style={{ color: s.color }}>{s.value}</p>
-                <p className="text-xs md:text-sm font-semibold mt-1" style={{ color: "#8A9188" }}>{s.label}</p>
+                <p className="text-xl md:text-2xl font-extrabold" style={{ color: s.color }}>{s.value}</p>
+                <p className="text-[10px] md:text-xs font-semibold mt-0.5" style={{ color: "#8A9188" }}>{s.label}</p>
               </div>
             ))}
           </div>
