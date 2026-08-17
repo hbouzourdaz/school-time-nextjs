@@ -158,7 +158,7 @@ export default function ExpertRegisterPage() {
               </Field>
 
               <Field label="اسم المستخدم">
-                <TextInput value={username} onChange={e => setUsername(e.target.value)} placeholder="m_amine" dir="ltr" />
+                <TextInput value={username} onChange={e => setUsername(e.target.value)} placeholder="hbouzourdaz" dir="ltr" />
                 {errors.username && <p className="text-xs mt-1" style={{ color: C_CLAY }}>{errors.username}</p>}
               </Field>
 
