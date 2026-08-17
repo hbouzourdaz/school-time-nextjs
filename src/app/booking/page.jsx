@@ -511,7 +511,7 @@ export default function BookingFormPage() {
           <p className="text-xs" style={{ color: "#8A9188" }}>{totalSections} قسم</p>
         </div>
         <PrimaryButton onClick={() => setReviewOpen(true)} disabled={!canSubmit || submitting}
-                       className="px-6 py-3 text-base whitespace-nowrap">
+                       className="ml-auto px-6 py-3 text-base whitespace-nowrap">
           مراجعة وإرسال الطلب
         </PrimaryButton>
       </div>
