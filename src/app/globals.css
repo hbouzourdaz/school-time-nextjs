@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    font-family: var(--font-cairo) !important;
+  }
+  body {
+    font-family: var(--font-cairo) !important;
+    background-color: var(--c-paper);
+    color: var(--c-ink);
+    font-size: 16px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  input, textarea, select {
+    font-family: var(--font-cairo);
+    font-size: 16px;
+  }
+  button {
+    cursor: pointer;
+    font-family: var(--font-cairo);
+  }
+}
+
+:root {
+  --c-ink:       #0F3D3E;
+  --c-ink-dark:  #0A2C2D;
+  --c-teal:     #0F3D3E;
+  --c-paper:    #F5F6F0;
+  --c-sage:     #DCE2D6;
+  --c-ochre:    #C68A2E;
+  --c-clay:     #B5533C;
+  --c-success:  #3F7859;
+  --font-cairo: "Cairo", system-ui, -apple-system, "Segoe UI", Tahoma, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translate(-50%, -12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+.animate-slide-down { animation: slide-down 0.25s ease-out; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.animate-spin { animation: spin 0.8s linear infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.animate-pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+.animate-shake { animation: shake 0.3s ease-in-out; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slideUp { animation: slideUp 0.4s ease-out; }
+
+.btn-interactive {
+  transition: all 0.2s ease;
+}
+.btn-interactive:hover {
+  transform: translateY(-1px);
+}
+.btn-interactive:active {
+  transform: translateY(0);
+}
+
+.card-interactive {
+  transition: all 0.2s ease;
+}
+.card-interactive:hover {
+  transform: translateY(-2px);
+}
+
+.refresh-spin {
+  transition: transform 0.4s ease;
+}
+.refresh-spin.spinning {
+  animation: spin 0.8s linear infinite;
+}
