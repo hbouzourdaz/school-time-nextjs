@@ -97,20 +97,35 @@ CREATE TABLE IF NOT EXISTS expert_registration_requests (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Notifications table
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT UNIQUE NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT,
+  type TEXT DEFAULT 'info',
+  target_role TEXT DEFAULT 'admin',
+  target_username TEXT,
+  read BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Enable Row Level Security (optional, permissive policies)
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE experts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expert_registration_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- Allow all operations via anon key (app handles auth itself)
 DROP POLICY IF EXISTS "Allow all for bookings" ON bookings;
 DROP POLICY IF EXISTS "Allow all for experts" ON experts;
 DROP POLICY IF EXISTS "Allow all for registrations" ON expert_registration_requests;
+DROP POLICY IF EXISTS "Allow all for notifications" ON notifications;
 DROP POLICY IF EXISTS "Allow all for storage" ON storage.objects;
 
 CREATE POLICY "Allow all for bookings" ON bookings FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for experts" ON experts FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for registrations" ON expert_registration_requests FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for notifications" ON notifications FOR ALL USING (true) WITH CHECK (true);
 
 -- Storage bucket for payment proofs
 INSERT INTO storage.buckets (id, name, public) VALUES ('booking-documents', 'booking-documents', true)

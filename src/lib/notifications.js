@@ -23,7 +23,7 @@ export async function saveNotification(notification) {
       const rows = await supaFetch("notifications", { method: "POST", body: JSON.stringify([record]) });
       return rows && rows[0] ? rows[0] : record;
     } catch (e) {
-      console.error("Supabase save notification failed, falling back to localStorage:", e);
+      console.warn("Supabase notifications not available, using localStorage:", e.message);
     }
   }
   localSet(`${STORAGE_PREFIX}${record.id}`, JSON.stringify(record));
@@ -38,7 +38,7 @@ export async function getNotificationsForExpert(username) {
       );
       return rows || [];
     } catch (e) {
-      console.error("Supabase list notifications failed, falling back to localStorage:", e);
+      console.warn("Supabase notifications not available, using localStorage:", e.message);
     }
   }
   const keys = localListKeys(STORAGE_PREFIX);
@@ -64,7 +64,7 @@ export async function getNotificationsForAdmin() {
       );
       return rows || [];
     } catch (e) {
-      console.error("Supabase list notifications failed, falling back to localStorage:", e);
+      console.warn("Supabase notifications not available, using localStorage:", e.message);
     }
   }
   const keys = localListKeys(STORAGE_PREFIX);
@@ -91,7 +91,7 @@ export async function markNotificationRead(id) {
       });
       return true;
     } catch (e) {
-      console.error("Supabase mark read failed, falling back to localStorage:", e);
+      console.warn("Supabase notifications not available, using localStorage:", e.message);
     }
   }
   const keys = localListKeys(STORAGE_PREFIX);
