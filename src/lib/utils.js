@@ -17,7 +17,7 @@ export const FONT_STACK = "'Cairo', system-ui, -apple-system, 'Segoe UI', Tahoma
 
 export const PRICE_PER_SECTION = 250;
 export const ROTATING_SECTIONS_FEE = 1000;
-export const EXPERT_REGISTRATION_FEE = 5000;
+export const EXPERT_REGISTRATION_FEE = 1500;
 
 export const ADMIN_PAYMENT_DEFAULTS = {
   ccp_name: "BELHOCINE NAWEL",
