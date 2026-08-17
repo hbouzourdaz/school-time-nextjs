@@ -44,31 +44,31 @@ export default function HomePage() {
            style={{ background: "linear-gradient(135deg, #0F3D3E 0%, #0F3D3E 50%, #0F3D3E 100%)" }}>
         <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.4) 0%, transparent 50%)" }} />
         <TimetableGlyph />
-        <h1 className="text-3xl font-extrabold mb-3 relative" style={{ color: "#fff" }}>
+        <h1 className="text-3xl md:text-5xl font-extrabold mb-3 relative" style={{ color: "#fff" }}>
           جدول مدرسي
         </h1>
-        <p className="text-base opacity-85 max-w-sm mx-auto relative" style={{ color: "rgba(255,255,255,0.9)" }}>
+        <p className="text-base md:text-lg opacity-85 max-w-lg mx-auto relative" style={{ color: "rgba(255,255,255,0.9)" }}>
           نظام إلكتروني لإنشاء وإدارة الجداول الزمنية للمؤسسات التعليمية
         </p>
       </div>
 
       {/* Live Stats */}
       {(stats.total > 0 || stats.active > 0) && (
-        <div className="max-w-md mx-auto px-5 -mt-6 relative z-10">
-          <div className="grid grid-cols-3 gap-3">
+        <div className="max-w-4xl mx-auto px-5 -mt-6 relative z-10">
+          <div className="grid grid-cols-3 gap-3 md:gap-5">
             {[
               { label: "إجمالي الطلبات", value: stats.total, icon: FileText, color: "#0F3D3E" },
               { label: "نشطة حالياً", value: stats.active, icon: Clock, color: "#C68A2E" },
               { label: "مكتملة", value: stats.done, icon: CheckCircle, color: "#3F7859" },
             ].map((s, i) => (
-              <div key={i} className="bg-white rounded-2xl p-4 text-center"
+              <div key={i} className="bg-white rounded-2xl p-4 md:p-6 text-center"
                    style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.08)", border: `1px solid #DCE2D6` }}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2"
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center mx-auto mb-2"
                      style={{ backgroundColor: hexToRgba(s.color, 0.1) }}>
                   <s.icon size={18} color={s.color} />
                 </div>
-                <p className="text-2xl font-extrabold" style={{ color: s.color }}>{s.value}</p>
-                <p className="text-xs font-semibold mt-1" style={{ color: "#8A9188" }}>{s.label}</p>
+                <p className="text-2xl md:text-3xl font-extrabold" style={{ color: s.color }}>{s.value}</p>
+                <p className="text-xs md:text-sm font-semibold mt-1" style={{ color: "#8A9188" }}>{s.label}</p>
               </div>
             ))}
           </div>
@@ -76,50 +76,52 @@ export default function HomePage() {
       )}
 
       {/* Actions */}
-      <div className="max-w-md mx-auto px-5 py-8 space-y-4">
-        <button
-          onClick={() => router.push("/booking")}
-          className="w-full flex items-center gap-4 p-5 rounded-2xl text-right transition-all hover:scale-[1.01] active:scale-[0.99]"
-          style={{ backgroundColor: "white", border: `1px solid #DCE2D6`,
-                   boxShadow: "0 4px 16px rgba(15,61,62,0.08)" }}
-        >
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
-               style={{ backgroundColor: "#EDF2EE" }}>
-            <Calendar size={26} color="#0F3D3E" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-lg" style={{ color: "#0F3D3E" }}>طلب جدول جديد</p>
-            <p className="text-base mt-0.5" style={{ color: "#8A9188" }}>
-              أدخل بيانات مؤسستك وسيتم إنشاء جدولك في أقرب وقت
-            </p>
-          </div>
-          <ArrowLeft size={20} color="#8A9188" className="flex-shrink-0 rotate-180" />
-        </button>
+      <div className="max-w-4xl mx-auto px-5 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <button
+            onClick={() => router.push("/booking")}
+            className="w-full flex items-center gap-4 p-5 rounded-2xl text-right transition-all hover:scale-[1.01] active:scale-[0.99]"
+            style={{ backgroundColor: "white", border: `1px solid #DCE2D6`,
+                     boxShadow: "0 4px 16px rgba(15,61,62,0.08)" }}
+          >
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
+                 style={{ backgroundColor: "#EDF2EE" }}>
+              <Calendar size={26} color="#0F3D3E" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-lg" style={{ color: "#0F3D3E" }}>طلب جدول جديد</p>
+              <p className="text-base mt-0.5" style={{ color: "#8A9188" }}>
+                أدخل بيانات مؤسستك وسيتم إنشاء جدولك في أقرب وقت
+              </p>
+            </div>
+            <ArrowLeft size={20} color="#8A9188" className="flex-shrink-0 rotate-180" />
+          </button>
 
-        <button
-          onClick={() => router.push("/track")}
-          className="w-full flex items-center gap-4 p-5 rounded-2xl text-right transition-all hover:scale-[1.01] active:scale-[0.99]"
-          style={{ backgroundColor: "white", border: `1px solid #DCE2D6`,
-                   boxShadow: "0 4px 16px rgba(198,138,46,0.08)" }}
-        >
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
-               style={{ backgroundColor: "#FAF0DB" }}>
-            <Search size={26} color="#C68A2E" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-lg" style={{ color: "#0F3D3E" }}>تتبع طلبي</p>
-            <p className="text-base mt-0.5" style={{ color: "#8A9188" }}>
-              أدخل رمز الطلب لمتابعة حالة جدولك
-            </p>
-          </div>
-          <ArrowLeft size={20} color="#8A9188" className="flex-shrink-0 rotate-180" />
-        </button>
+          <button
+            onClick={() => router.push("/track")}
+            className="w-full flex items-center gap-4 p-5 rounded-2xl text-right transition-all hover:scale-[1.01] active:scale-[0.99]"
+            style={{ backgroundColor: "white", border: `1px solid #DCE2D6`,
+                     boxShadow: "0 4px 16px rgba(198,138,46,0.08)" }}
+          >
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
+                 style={{ backgroundColor: "#FAF0DB" }}>
+              <Search size={26} color="#C68A2E" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-lg" style={{ color: "#0F3D3E" }}>تتبع طلبي</p>
+              <p className="text-base mt-0.5" style={{ color: "#8A9188" }}>
+                أدخل رمز الطلب لمتابعة حالة جدولك
+              </p>
+            </div>
+            <ArrowLeft size={20} color="#8A9188" className="flex-shrink-0 rotate-180" />
+          </button>
+        </div>
       </div>
 
       {/* Features */}
-      <div className="max-w-md mx-auto px-5 pb-8">
-        <h2 className="text-base font-bold mb-5 text-center" style={{ color: "#0F3D3E" }}>لماذا تختار نظام جدول مدرسي؟</h2>
-        <div className="grid grid-cols-2 gap-3">
+      <div className="max-w-4xl mx-auto px-5 pb-8">
+        <h2 className="text-base md:text-lg font-bold mb-5 text-center" style={{ color: "#0F3D3E" }}>لماذا تختار نظام جدول مدرسي؟</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
           {[
             { icon: Zap, title: "سرعة الإنجاز", desc: "إنشاء الجداول في دقائق" },
             { icon: Shield, title: "أمان البيانات", desc: "تخزين سحابي آمن" },
@@ -140,7 +142,7 @@ export default function HomePage() {
       </div>
 
       {/* Developer Credit */}
-      <div className="max-w-md mx-auto px-5 pb-6">
+      <div className="max-w-4xl mx-auto px-5 pb-6">
         <div className="rounded-2xl p-4 text-center" style={{ backgroundColor: "white", border: "1px solid #DCE2D6", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
           <p className="text-xs mb-1" style={{ color: "#8A9188" }}>صنع بواسطة</p>
           <p className="text-sm font-bold" style={{ color: "#0F3D3E" }}>الأستاذ: حكيم بوزورداز</p>
