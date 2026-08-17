@@ -40,14 +40,14 @@ export default function HomePage() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F5F6F0" }}>
       {/* Hero */}
-      <div className="px-6 pt-16 pb-14 text-center relative overflow-hidden"
+      <div className="px-6 pt-8 pb-6 md:pt-10 md:pb-8 text-center relative overflow-hidden"
            style={{ background: "linear-gradient(135deg, #0F3D3E 0%, #0F3D3E 50%, #0F3D3E 100%)" }}>
         <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.4) 0%, transparent 50%)" }} />
         <TimetableGlyph />
-        <h1 className="text-3xl md:text-5xl font-extrabold mb-3 relative" style={{ color: "#fff" }}>
+        <h1 className="text-3xl md:text-3xl font-extrabold mb-2 relative" style={{ color: "#fff" }}>
           جدول مدرسي
         </h1>
-        <p className="text-base md:text-lg opacity-85 max-w-lg mx-auto relative" style={{ color: "rgba(255,255,255,0.9)" }}>
+        <p className="text-sm md:text-base opacity-85 max-w-lg mx-auto relative" style={{ color: "rgba(255,255,255,0.9)" }}>
           نظام إلكتروني لإنشاء وإدارة الجداول الزمنية للمؤسسات التعليمية
         </p>
       </div>
