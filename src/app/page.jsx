@@ -142,7 +142,7 @@ export default function HomePage() {
       {/* Developer Credit */}
       <div className="max-w-md mx-auto px-5 pb-6">
         <div className="rounded-2xl p-4 text-center" style={{ backgroundColor: "white", border: "1px solid #DCE2D6", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-          <p className="text-xs mb-1" style={{ color: "#8A9188" }}>طُبع بواسطة</p>
+          <p className="text-xs mb-1" style={{ color: "#8A9188" }}>صنع بواسطة</p>
           <p className="text-sm font-bold" style={{ color: "#0F3D3E" }}>الأستاذ: حكيم بوزورداز</p>
           <a href="mailto:hbouzourdaz@gmail.com" className="text-xs font-semibold inline-block mt-1 px-3 py-1 rounded-full transition-colors hover:opacity-80"
              style={{ backgroundColor: "rgba(15,61,62,0.08)", color: "#0F3D3E" }}>
