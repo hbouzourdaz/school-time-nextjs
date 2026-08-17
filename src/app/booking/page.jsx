@@ -504,20 +504,14 @@ export default function BookingFormPage() {
       </Card>
 
       {/* Price + Submit */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white px-5 pt-3 pb-4 border-t"
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white px-5 py-3 border-t flex items-center gap-4"
            style={{ borderColor: "#F59E0B", boxShadow: "0 -4px 24px rgba(198,138,46,0.18)" }}>
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <p className="text-sm" style={{ color: "#8A9188" }}>التكلفة التقديرية</p>
-            <p className="text-xl font-extrabold" style={{ color: "#0F3D3E" }}>{formatDZD(totalPrice)}</p>
-          </div>
-          <div className="text-left">
-            <p className="text-sm" style={{ color: "#8A9188" }}>{totalSections} قسم × {formatDZD(PRICE_PER_SECTION)}</p>
-            {form.hasRotatingSections && <p className="text-sm" style={{ color: "#C68A2E" }}>+ {formatDZD(ROTATING_SECTIONS_FEE)} دوّرة</p>}
-          </div>
+        <div className="flex-shrink-0">
+          <p className="text-xl font-extrabold leading-tight" style={{ color: "#0F3D3E" }}>{formatDZD(totalPrice)}</p>
+          <p className="text-xs" style={{ color: "#8A9188" }}>{totalSections} قسم</p>
         </div>
         <PrimaryButton onClick={() => setReviewOpen(true)} disabled={!canSubmit || submitting}
-                       className="w-full py-3 text-base">
+                       className="flex-1 py-3 text-base">
           مراجعة وإرسال الطلب
         </PrimaryButton>
       </div>
