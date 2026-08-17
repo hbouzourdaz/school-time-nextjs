@@ -13,8 +13,9 @@ import {
 import { isSupabaseConfigured, uploadToSupabaseStorage } from "@/lib/supabase";
 import { getBookingsByExpert, updateBookingByCode } from "@/lib/bookings";
 import { getExpertByUsername, updateExpert } from "@/lib/experts";
+import { getNotificationsForExpert, markAllReadForExpert, getUnreadCountForExpert } from "@/lib/notifications";
 import {
-  TextInput, PrimaryButton, StatusBadge, SummaryRow, Field, Card, useToast,
+  TextInput, PrimaryButton, StatusBadge, SummaryRow, Field, Card, useToast, NotificationBell,
 } from "@/components/ui";
 
 export default function ExpertDashboardPage() {
@@ -24,6 +25,8 @@ export default function ExpertDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [tab, setTab] = useState("bookings");
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const raw = typeof window !== "undefined" ? sessionStorage.getItem("expertAuth") : null;
@@ -37,6 +40,15 @@ export default function ExpertDashboardPage() {
   }, [router]);
 
   const loadedRef = useRef(false);
+
+  const loadNotifications = useCallback(async (username) => {
+    if (!username) return;
+    try {
+      const data = await getNotificationsForExpert(username);
+      setNotifications(data);
+      setUnreadCount(data.filter((n) => !n.read).length);
+    } catch {}
+  }, []);
 
   const load = useCallback(async () => {
     const raw = typeof window !== "undefined" ? sessionStorage.getItem("expertAuth") : null;
@@ -53,6 +65,7 @@ export default function ExpertDashboardPage() {
       }
       const data = await getBookingsByExpert(username);
       setBookings(data);
+      loadNotifications(username);
     } catch (e) {
       console.error("Failed to load expert data:", e);
     } finally {
@@ -67,9 +80,26 @@ export default function ExpertDashboardPage() {
     }
   }, [load]);
 
+  useEffect(() => {
+    const raw = typeof window !== "undefined" ? sessionStorage.getItem("expertAuth") : null;
+    if (!raw) return;
+    let username;
+    try { username = JSON.parse(raw).username; } catch { return; }
+    if (!username) return;
+    const interval = setInterval(() => loadNotifications(username), 30000);
+    return () => clearInterval(interval);
+  }, [loadNotifications]);
+
   function handleLogout() {
     sessionStorage.removeItem("expertAuth");
     router.push("/expert/login");
+  }
+
+  async function handleMarkAllRead() {
+    if (expert?.username) {
+      await markAllReadForExpert(expert.username);
+      loadNotifications(expert.username);
+    }
   }
 
   if (!expert) return null;
@@ -88,9 +118,13 @@ export default function ExpertDashboardPage() {
           <h1 className="font-extrabold text-base" style={{ color: C_INK }}>لوحة تحكم الخبير</h1>
           <p className="text-xs" style={{ color: "#8A9188" }}>مرحباً، {expert.name}</p>
         </div>
-        <button onClick={handleLogout} className="flex items-center gap-1 text-sm" style={{ color: "#8A9188" }}>
-          <LogOut size={16} /> خروج
-        </button>
+        <div className="flex items-center gap-2">
+          <NotificationBell notifications={notifications} unreadCount={unreadCount}
+                            onMarkAllRead={handleMarkAllRead} />
+          <button onClick={handleLogout} className="flex items-center gap-1 text-sm" style={{ color: "#8A9188" }}>
+            <LogOut size={16} /> خروج
+          </button>
+        </div>
       </div>
 
       <div className="flex border-b bg-white overflow-x-auto" style={{ borderColor: C_SAGE_LINE }}>

@@ -17,8 +17,9 @@ import { isSupabaseConfigured, uploadToSupabaseStorage, testSupabaseConnection }
 import { getAllBookings, updateBookingByCode, deleteBooking } from "@/lib/bookings";
 import { getAllExperts, saveExpert, updateExpert, deleteExpert } from "@/lib/experts";
 import { getAllRegistrationRequests, updateRegistrationRequest, deleteRegistrationRequest } from "@/lib/registrations";
+import { getNotificationsForAdmin, markAllReadForAdmin, getUnreadCountForAdmin } from "@/lib/notifications";
 import {
-  StatusBadge, SummaryRow, Modal, PrimaryButton, TextInput, Field, useToast,
+  StatusBadge, SummaryRow, Modal, PrimaryButton, TextInput, Field, useToast, NotificationBell,
 } from "@/components/ui";
 
 const tabs = [
@@ -32,6 +33,27 @@ const tabs = [
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("bookings");
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      const data = await getNotificationsForAdmin();
+      setNotifications(data);
+      setUnreadCount(data.filter((n) => !n.read).length);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [loadNotifications]);
+
+  async function handleMarkAllRead() {
+    await markAllReadForAdmin();
+    loadNotifications();
+  }
 
   useEffect(() => {
     if (typeof window !== "undefined" && sessionStorage.getItem("adminAuth") !== "1") {
@@ -57,9 +79,13 @@ export default function AdminDashboardPage() {
             {isSupabaseConfigured() ? "● متصل بـ Supabase" : "● وضع محلي"}
           </span>
         </div>
+        <div className="flex items-center gap-2">
+          <NotificationBell notifications={notifications} unreadCount={unreadCount}
+                            onMarkAllRead={handleMarkAllRead} />
           <button onClick={handleLogout} className="flex items-center gap-1 text-base" style={{ color: "#8A9188" }}>
             <LogOut size={16} /> خروج
           </button>
+        </div>
       </div>
 
       <div className="flex border-b bg-white overflow-x-auto scrollbar-hide" style={{ borderColor: C_SAGE_LINE }}>

@@ -6,7 +6,7 @@ import { useState, useCallback, useEffect, createContext, useContext } from "rea
 import { useRouter, usePathname } from "next/navigation";
 import {
   Home, ClipboardList, Search, User, Settings, LogOut, Menu, X,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Bell, BellRing,
 } from "lucide-react";
 import { C_INK, C_INK_TEAL, C_PAPER, C_SAGE_LINE, C_OCHRE, C_CLAY, C_SUCCESS, hexToRgba,
          STATUS_PENDING, STATUS_IN_PROGRESS, STATUS_DONE, STATUS_CANCELLED, STATUS_REJECTED } from "@/lib/utils";
@@ -231,6 +231,98 @@ export function Navbar() {
 }
 
 // ===== Stepper =====
+export function NotificationBell({ notifications, unreadCount, onOpen, onMarkAllRead }) {
+  const [open, setOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+
+  function handleToggle() {
+    setOpen((p) => !p);
+    if (onOpen) onOpen();
+  }
+
+  function handleMarkAll() {
+    if (onMarkAllRead) onMarkAllRead();
+  }
+
+  const visibleNotifications = showAll ? notifications : notifications.slice(0, 5);
+
+  return (
+    <div className="relative">
+      <button onClick={handleToggle}
+              className="relative p-2 rounded-xl transition-colors btn-interactive"
+              style={{ color: unreadCount > 0 ? C_OCHRE : "#8A9188" }}>
+        {unreadCount > 0 ? <BellRing size={20} /> : <Bell size={20} />}
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -left-0.5 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center text-white"
+                style={{ backgroundColor: C_CLAY }}>
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white rounded-2xl shadow-2xl z-50"
+               style={{ border: `1px solid ${C_SAGE_LINE}` }}>
+            <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: "#EDEFE9" }}>
+              <h3 className="font-bold text-sm" style={{ color: C_INK }}>الإشعارات</h3>
+              {unreadCount > 0 && (
+                <button onClick={handleMarkAll} className="text-xs font-semibold" style={{ color: C_INK_TEAL }}>
+                  قراءة الكل
+                </button>
+              )}
+            </div>
+            <div className="divide-y" style={{ borderColor: "#EDEFE9" }}>
+              {visibleNotifications.length === 0 ? (
+                <div className="p-6 text-center">
+                  <Bell size={24} className="mx-auto mb-2" style={{ color: "#DCE2D6" }} />
+                  <p className="text-sm" style={{ color: "#8A9188" }}>لا توجد إشعارات</p>
+                </div>
+              ) : (
+                visibleNotifications.map((n) => (
+                  <div key={n.id} className="px-4 py-3 transition-colors"
+                       style={{ backgroundColor: n.read ? "transparent" : hexToRgba(C_INK_TEAL, 0.04) }}>
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                           style={{
+                             backgroundColor: n.type === "success" ? hexToRgba(C_SUCCESS, 0.12)
+                               : n.type === "error" ? hexToRgba(C_CLAY, 0.12)
+                               : hexToRgba(C_OCHRE, 0.12),
+                           }}>
+                        {n.type === "success" ? <CheckCircle size={14} color={C_SUCCESS} />
+                          : n.type === "error" ? <AlertCircle size={14} color={C_CLAY} />
+                          : <Bell size={14} color={C_OCHRE} />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold" style={{ color: C_INK }}>{n.title}</p>
+                        <p className="text-xs mt-0.5" style={{ color: "#8A9188" }}>{n.message}</p>
+                        <p className="text-[10px] mt-1" style={{ color: "#B5B8B3" }}>
+                          {new Date(n.created_at).toLocaleDateString("ar-DZ", { hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      </div>
+                      {!n.read && (
+                        <div className="w-2 h-2 rounded-full flex-shrink-0 mt-2" style={{ backgroundColor: C_OCHRE }} />
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            {notifications.length > 5 && !showAll && (
+              <button onClick={() => setShowAll(true)}
+                      className="w-full p-3 text-center text-sm font-semibold border-t"
+                      style={{ borderColor: "#EDEFE9", color: C_INK_TEAL }}>
+                عرض الكل ({notifications.length})
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function Stepper({ steps, current }) {
   return (
     <div className="flex items-center gap-1 mb-6 px-2">

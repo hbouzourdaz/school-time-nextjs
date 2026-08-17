@@ -19,6 +19,8 @@ import {
 import { getAllExperts } from "@/lib/experts";
 import { saveBooking } from "@/lib/bookings";
 import { isSupabaseConfigured, uploadToSupabaseStorage } from "@/lib/supabase";
+import { saveNotification } from "@/lib/notifications";
+import { sendNewBookingEmail } from "@/lib/email";
 import {
   TextInput, TextArea, Select, PrimaryButton, Field, Card, Modal,
 } from "@/components/ui";
@@ -204,6 +206,30 @@ export default function BookingFormPage() {
       const chosenExpert = experts.find((e) => e.username === form.expertUsername);
       record.expert_name = chosenExpert ? chosenExpert.name : "";
       await saveBooking(record);
+
+      if (chosenExpert) {
+        saveNotification({
+          title: "طلب حجز جديد",
+          message: `حجز جديد من ${form.institutionName} (${form.applicantName}) - ${totalSections} قسم`,
+          type: "info",
+          target_role: "expert",
+          target_username: chosenExpert.username,
+        });
+        if (chosenExpert.email) {
+          sendNewBookingEmail({
+            expertName: chosenExpert.name,
+            expertEmail: chosenExpert.email,
+            bookingCode: code,
+            institutionName: form.institutionName,
+            applicantName: form.applicantName,
+            phone: form.phone,
+            level: form.level,
+            totalSections,
+            totalPrice: formatDZD(totalPrice),
+          });
+        }
+      }
+
       sessionStorage.setItem("lastBooking", JSON.stringify({ code, pin }));
       router.push("/confirmed");
     } catch (e) {

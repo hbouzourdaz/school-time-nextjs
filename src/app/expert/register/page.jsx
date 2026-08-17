@@ -12,6 +12,8 @@ import {
 } from "@/lib/utils";
 import { saveRegistrationRequest } from "@/lib/registrations";
 import { isSupabaseConfigured, uploadToSupabaseStorage } from "@/lib/supabase";
+import { saveNotification } from "@/lib/notifications";
+import { sendNewRegistrationEmail } from "@/lib/email";
 import {
   TextInput, PrimaryButton, Field, StatusBadge, useToast,
 } from "@/components/ui";
@@ -79,6 +81,21 @@ export default function ExpertRegisterPage() {
         updated_at: new Date().toISOString(),
       };
       await saveRegistrationRequest(request);
+
+      saveNotification({
+        title: "طلب تسجيل خبير جديد",
+        message: `${request.name} (${request.username}) يطلب التسجيل كخبير`,
+        type: "info",
+        target_role: "admin",
+      });
+      sendNewRegistrationEmail({
+        adminEmail: "hbouzourdaz@gmail.com",
+        requestName: request.name,
+        requestUsername: request.username,
+        requestEmail: request.email,
+        requestId: request.id,
+      });
+
       setTrackingId(request.id);
       setSubmitted(true);
       toast.add("تم إرسال طلب التسجيل بنجاح", "success");
