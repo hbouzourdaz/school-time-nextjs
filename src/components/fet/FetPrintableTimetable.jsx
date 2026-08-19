@@ -87,18 +87,36 @@ export default function FetPrintableTimetable({
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  // Collect days and hours safely from model OR timetable
+  // Strip morning/afternoon suffixes from day names (e.g. "الأحد ص", "الأحد م" → "الأحد")
+  const stripDaySuffix = (d) => d ? d.replace(/\s*[صمابمساءصباح]+$/u, "").trim() : d;
+
+  // Collect days (unique base names, preserving order from model or timetable)
   const days = useMemo(() => {
-    if (model.days && model.days.length > 0) return model.days;
-    const fromTable = Array.from(new Set(timetable.map(a => a.day).filter(Boolean)));
-    if (fromTable.length > 0) return fromTable;
-    return ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس"];
+    const rawDays = (model.days && model.days.length > 0)
+      ? model.days
+      : Array.from(new Set(timetable.map(a => a.day).filter(Boolean)));
+    // Deduplicate after stripping suffixes, preserving insertion order
+    const seen = new Set();
+    const result = [];
+    for (const d of rawDays) {
+      const base = stripDaySuffix(d);
+      if (!seen.has(base)) { seen.add(base); result.push(base); }
+    }
+    return result.length > 0 ? result : ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس"];
   }, [model.days, timetable]);
 
   const hours = useMemo(() => {
-    if (model.hours && model.hours.length > 0) return model.hours;
-    const fromTable = Array.from(new Set(timetable.map(a => a.hour).filter(Boolean)));
-    if (fromTable.length > 0) return fromTable;
+    const rawHours = (model.hours && model.hours.length > 0)
+      ? model.hours
+      : Array.from(new Set(timetable.map(a => a.hour).filter(Boolean)));
+    // Strip any trailing ص/م suffix from hour labels (e.g. "ح1 ص" → "ح1")
+    const seen = new Set();
+    const result = [];
+    for (const h of rawHours) {
+      const base = h ? h.replace(/\s*[صمابمساءصباح]+$/u, "").trim() : h;
+      if (!seen.has(base)) { seen.add(base); result.push(base); }
+    }
+    if (result.length > 0) return result;
     return [
       "08:00-09:00",
       "09:00-10:00",
@@ -469,21 +487,27 @@ export default function FetPrintableTimetable({
    Helper: Safe Activity Finder (Matches by string or normalized)
    ═══════════════════════════════════════════════════ */
 function getMatchingActivities(timetable, filterType, filterValue, day, hour, dayIndex, hourIndex, allDays, allHours) {
+  // Strip morning/afternoon suffix from any day string
+  const stripSuffix = (d) => d ? d.replace(/\s*[صمابمساءصباح]+$/u, "").trim() : d;
+
   return (timetable || []).filter((item) => {
-    // 1. Day match
+    // 1. Day match — compare base day names (ignoring ص/م suffix)
+    const itemBase = stripSuffix(item.day);
+    const dayBase  = stripSuffix(day);
     const dayMatch = (
-      item.day === day ||
-      cleanStr(item.day) === cleanStr(day) ||
-      (allDays && allDays.indexOf(item.day) === dayIndex)
+      itemBase === dayBase ||
+      cleanStr(itemBase) === cleanStr(dayBase)
     );
     if (!dayMatch) return false;
 
-    // 2. Hour match
+    // 2. Hour match — also strip any ص/م suffix from hour labels
+    const itemHourBase = item.hour ? item.hour.replace(/\s*[صمابمساءصباح]+$/u, "").trim() : item.hour;
+    const hourBase     = hour      ? hour.replace(/\s*[صمابمساءصباح]+$/u, "").trim() : hour;
     const hourMatch = (
-      item.hour === hour ||
-      cleanStr(item.hour) === cleanStr(hour) ||
+      itemHourBase === hourBase ||
+      cleanStr(itemHourBase) === cleanStr(hourBase) ||
       (allHours && allHours.indexOf(item.hour) === hourIndex) ||
-      (item.hour && hour && (item.hour.includes(hour) || hour.includes(item.hour)))
+      (itemHourBase && hourBase && (itemHourBase.includes(hourBase) || hourBase.includes(itemHourBase)))
     );
     if (!hourMatch) return false;
 
