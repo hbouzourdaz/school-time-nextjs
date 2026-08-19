@@ -77,7 +77,7 @@ export default function HomePage() {
 
       {/* Actions */}
       <div className="max-w-4xl mx-auto px-5 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <button
             onClick={() => router.push("/booking")}
             className="w-full flex items-center gap-4 p-5 rounded-2xl text-right transition-all hover:scale-[1.01] active:scale-[0.99]"
@@ -90,7 +90,7 @@ export default function HomePage() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-bold text-lg" style={{ color: "#0F3D3E" }}>طلب جدول جديد</p>
-              <p className="text-base mt-0.5" style={{ color: "#8A9188" }}>
+              <p className="text-sm mt-0.5" style={{ color: "#8A9188" }}>
                 أدخل بيانات مؤسستك وسيتم إنشاء جدولك في أقرب وقت
               </p>
             </div>
@@ -109,8 +109,27 @@ export default function HomePage() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-bold text-lg" style={{ color: "#0F3D3E" }}>تتبع طلبي</p>
-              <p className="text-base mt-0.5" style={{ color: "#8A9188" }}>
-                أدخل رمز الطلب لمتابعة حالة جدولك
+              <p className="text-sm mt-0.5" style={{ color: "#8A9188" }}>
+                أدخل رمز الطلب لمتابعة حالة جدولك ورؤية التحديثات
+              </p>
+            </div>
+            <ArrowLeft size={20} color="#8A9188" className="flex-shrink-0 rotate-180" />
+          </button>
+
+          <button
+            onClick={() => router.push("/fet-generator")}
+            className="w-full flex items-center gap-4 p-5 rounded-2xl text-right transition-all hover:scale-[1.01] active:scale-[0.99]"
+            style={{ backgroundColor: "white", border: `1px solid #DCE2D6`,
+                     boxShadow: "0 4px 16px rgba(63,120,89,0.08)" }}
+          >
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
+                 style={{ backgroundColor: "#EDF7F2" }}>
+              <Zap size={26} color="#3F7859" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-lg" style={{ color: "#0F3D3E" }}>التوليد الذكي (FET)</p>
+              <p className="text-sm mt-0.5" style={{ color: "#8A9188" }}>
+                توليد ومعالجة الجداول الزمنية باستخدام محرك FET المتطور
               </p>
             </div>
             <ArrowLeft size={20} color="#8A9188" className="flex-shrink-0 rotate-180" />

@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.env.local
+.env.development
+.env.test
+.env.production
+public/fet-output-test
+public/fet-output-test2
+scratch
+*.log
+.DS_Store
