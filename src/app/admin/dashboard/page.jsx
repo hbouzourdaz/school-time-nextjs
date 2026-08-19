@@ -1069,6 +1069,8 @@ function SettingsForm() {
   const [key, setKey]       = useState("");
   const [busy, setBusy]     = useState(false);
   const [result, setResult] = useState(null);
+  const [migrating, setMigrating] = useState(false);
+  const [migrateLog, setMigrateLog] = useState([]);
 
   const [adminPayment, setAdminPayment] = useState(() => getAdminPaymentInfo());
   const [paymentSaved, setPaymentSaved] = useState(false);
@@ -1084,6 +1086,67 @@ function SettingsForm() {
     setResult(test.ok
       ? { ok: true, message: "تم الحفظ والاتصال بقاعدة البيانات ناجح ✅" }
       : { ok: false, message: `تم الحفظ، لكن اختبار الاتصال فشل: ${test.message}` });
+  }
+
+  async function handleMigrateToSupabase() {
+    const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+    const supaKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "";
+    if (!supaUrl || !supaKey) {
+      toast.add("متغيرات البيئة NEXT_PUBLIC_SUPABASE_URL و NEXT_PUBLIC_SUPABASE_ANON_KEY غير محددة", "error");
+      return;
+    }
+
+    setMigrating(true);
+    setMigrateLog([]);
+    const log = (msg) => setMigrateLog(prev => [...prev, msg]);
+
+    // Collect all bookings from localStorage
+    const bookings = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("booking:")) {
+          try { bookings.push(JSON.parse(localStorage.getItem(k))); } catch {}
+        }
+      }
+    } catch {}
+
+    log(`📦 وجدت ${bookings.length} حجزاً في المتصفح (localStorage)`);
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const booking of bookings) {
+      try {
+        const res = await fetch(`${supaUrl}/rest/v1/bookings`, {
+          method: "POST",
+          headers: {
+            apikey: supaKey,
+            Authorization: `Bearer ${supaKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal,resolution=ignore-duplicates",
+          },
+          body: JSON.stringify([booking]),
+        });
+        if (res.ok || res.status === 409) {
+          successCount++;
+          log(`✅ ${booking.code} — ${booking.institution_name}`);
+        } else {
+          const txt = await res.text().catch(() => "");
+          errorCount++;
+          log(`❌ ${booking.code} — خطأ ${res.status}: ${txt.substring(0, 80)}`);
+        }
+      } catch (e) {
+        errorCount++;
+        log(`❌ ${booking.code} — ${e.message}`);
+      }
+    }
+
+    log(`\n🏁 انتهى: ${successCount} نجح، ${errorCount} فشل`);
+    if (successCount > 0) {
+      toast.add(`تم ترحيل ${successCount} حجزاً إلى Supabase بنجاح!`, "success");
+    }
+    setMigrating(false);
   }
 
   function handlePaymentSave() {
@@ -1157,6 +1220,42 @@ function SettingsForm() {
         )}
         <PrimaryButton onClick={handleSave} disabled={busy} loading={busy} className="w-full py-3">
           حفظ واختبار الاتصال
+        </PrimaryButton>
+      </div>
+
+      {/* ─── Data Migration Card ─── */}
+      <div className="bg-white rounded-2xl p-5 mt-5" style={{ border: `1px solid ${hexToRgba(C_OCHRE, 0.5)}` }}>
+        <div className="flex items-center gap-2 mb-2">
+          <Database size={18} color={C_OCHRE} />
+          <h3 className="font-bold text-base" style={{ color: C_INK }}>ترحيل البيانات المحلية إلى Supabase</h3>
+        </div>
+        <p className="text-sm mb-3" style={{ color: "#8A9188" }}>
+          إذا كانت لديك حجوزات محفوظة في المتصفح (localStorage) قبل ربط Supabase، استخدم هذا الزر لرفعها إلى قاعدة البيانات السحابية دفعةً واحدة. العملية آمنة ولا تُكرر الحجوزات الموجودة مسبقاً.
+        </p>
+
+        {migrateLog.length > 0 && (
+          <div className="rounded-xl p-3 mb-4 font-mono text-xs overflow-y-auto max-h-48 space-y-1 text-right"
+               style={{ backgroundColor: "#F5F6F0", border: `1px solid ${C_SAGE_LINE}` }}
+               dir="ltr">
+            {migrateLog.map((line, i) => (
+              <div key={i} className={
+                line.startsWith("✅") ? "text-green-700" :
+                line.startsWith("❌") ? "text-red-600" :
+                line.startsWith("🏁") ? "font-bold text-[#0F3D3E]" :
+                "text-gray-500"
+              }>{line}</div>
+            ))}
+          </div>
+        )}
+
+        <PrimaryButton
+          onClick={handleMigrateToSupabase}
+          disabled={migrating}
+          loading={migrating}
+          className="w-full py-3"
+          style={{ backgroundColor: C_OCHRE }}
+        >
+          {migrating ? "جاري الترحيل..." : "ترحيل الحجوزات من المتصفح → Supabase"}
         </PrimaryButton>
       </div>
     </div>
