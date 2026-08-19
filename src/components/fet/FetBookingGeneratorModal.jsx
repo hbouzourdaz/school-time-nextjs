@@ -2,9 +2,14 @@
 import { useState, useRef, useEffect } from "react";
 import {
   X, Play, RefreshCw, Layers, CheckCircle, AlertTriangle, ArrowRight,
-  Sliders, Printer, Download, Save, Undo2, Clock, Timer, XCircle
+  Sliders, Printer, Download, Save, Undo2, Clock, Timer, XCircle,
+  Upload, FileCode, Sparkles, Check, FileText
 } from "lucide-react";
-import { buildInitialFetModelFromBooking, serializeFetModelToXml } from "@/lib/fetBuilder";
+import {
+  buildInitialFetModelFromBooking,
+  serializeFetModelToXml,
+  parseFetXmlToModel
+} from "@/lib/fetBuilder";
 import { updateBookingByCode } from "@/lib/bookings";
 import { STATUS_DONE } from "@/lib/utils";
 import FetConstraintEditor from "./FetConstraintEditor";
@@ -14,8 +19,17 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
   // Step: "edit" | "generating" | "result"
   const [step, setStep] = useState("edit");
 
+  // Mode: "auto_booking" | "uploaded_file"
+  const [sourceMode, setSourceMode] = useState("auto_booking");
+
   // FET Model state
   const [model, setModel] = useState(() => buildInitialFetModelFromBooking(booking));
+
+  // Uploaded FET file state
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [rawUploadedXml, setRawUploadedXml] = useState("");
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef(null);
 
   // Solver state
   const [isGenerating, setIsGenerating] = useState(false);
@@ -63,16 +77,62 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
     };
   }, [isGenerating, runId]);
 
+  // Handle FET File Selection
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processFetFile(file);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    processFetFile(file);
+  };
+
+  const processFetFile = (file) => {
+    setUploadError("");
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target.result;
+        if (!text.includes("<fet") || !text.includes("</fet>")) {
+          throw new Error("الملف المحدد ليس ملف FET XML صالح (يجب أن يحتوي على وسم <fet>).");
+        }
+        const parsedModel = parseFetXmlToModel(text);
+        setUploadedFile({
+          name: file.name,
+          size: file.size,
+          lastModified: file.lastModified
+        });
+        setRawUploadedXml(text);
+        setModel(parsedModel);
+        setSourceMode("uploaded_file");
+      } catch (err) {
+        console.error("FET Parse error:", err);
+        setUploadError(err.message || "فشل قراءة ملف FET. تأكد من صحة الملف.");
+      }
+    };
+    reader.onerror = () => {
+      setUploadError("حدث خطأ أثناء قراءة الملف من جهازك.");
+    };
+    reader.readAsText(file, "UTF-8");
+  };
+
   // Reset to booking default
   const handleResetDefault = () => {
     if (confirm("هل أنت متأكد من رغبتك في إعادة تعيين كافة البيانات والقيود إلى القيم الأولية للحجز؟")) {
       setModel(buildInitialFetModelFromBooking(booking));
+      setSourceMode("auto_booking");
+      setUploadedFile(null);
+      setRawUploadedXml("");
     }
   };
 
   // Run Solver
-  const handleStartGeneration = async () => {
-    const xml = serializeFetModelToXml(model);
+  const handleStartGeneration = async (xmlToRun = null) => {
+    const xml = xmlToRun || (sourceMode === "uploaded_file" && rawUploadedXml ? rawUploadedXml : serializeFetModelToXml(model));
     const newRunId = Date.now().toString();
     setRunId(newRunId);
 
@@ -133,7 +193,7 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
 
   // Save generated files into booking
   const handleSaveToBooking = async ({ resultFetContent: fetText, timetable: finalTable }) => {
-    const fileName = `${booking.institution_name.replace(/\s+/g, "_")}_جدول_الحصص.fet`;
+    const fileName = `${(model.institution || booking.institution_name).replace(/\s+/g, "_")}_جدول_الحصص.fet`;
     
     // Create base64 data URL for the .fet file
     const fetBase64 = `data:text/xml;charset=utf-8;base64,${btoa(unescape(encodeURIComponent(fetText || "")))}`;
@@ -194,7 +254,7 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
                 </span>
               </h2>
               <p className="text-xs text-[#8A9188]">
-                {booking.level} · {booking.total_sections} أقسام · {model.teachers?.length || 0} أساتذة · {model.activities?.length || 0} حصة
+                {model.institution || booking.institution_name} · {model.sections?.length || 0} أقسام · {model.teachers?.length || 0} أساتذة · {model.activities?.length || 0} حصة
               </p>
             </div>
           </div>
@@ -224,31 +284,159 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
           {/* STEP 1: Edit Data & Constraints */}
           {step === "edit" && (
             <div className="space-y-6">
-              {/* Top Banner with Actions */}
-              <div className="bg-white p-4 rounded-2xl border border-[#DCE2D6] shadow-sm flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="font-bold text-sm text-[#0F3D3E]">لوحة تحكم معطيات وقيود الحجز</h3>
-                  <p className="text-xs text-[#8A9188]">
-                    يمكنك تخصيص الأساتذة، المواد، الأقسام، والقاعات أو إضافة تفريغات وأوقات راحة قبل بدء التوليد.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={handleResetDefault}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#DCE2D6] text-[#8A9188] hover:text-[#0F3D3E] hover:border-[#0F3D3E] text-xs font-bold transition-all"
-                  >
-                    <Undo2 size={14} />
-                    استرجاع بيانات الحجز الأصلية
-                  </button>
-                  <button
-                    onClick={handleStartGeneration}
-                    className="bg-[#0F3D3E] hover:bg-[#175253] text-white px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shadow-md hover:shadow-lg"
-                  >
-                    <Play size={15} />
-                    بدء التوليد بمحرك FET
-                  </button>
-                </div>
+              {/* Source Switcher: Auto from Booking vs Direct Upload */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSourceMode("auto_booking")}
+                  className={`p-4 rounded-2xl border text-right transition-all flex items-start gap-3.5 ${
+                    sourceMode === "auto_booking"
+                      ? "border-[#0F3D3E] bg-white shadow-sm ring-2 ring-[#0F3D3E]/10"
+                      : "border-[#DCE2D6] bg-white/60 hover:bg-white hover:border-[#8A9188]"
+                  }`}
+                >
+                  <div className={`p-2.5 rounded-xl ${sourceMode === "auto_booking" ? "bg-[#0F3D3E] text-white" : "bg-gray-100 text-gray-600"}`}>
+                    <Sliders size={20} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-extrabold text-sm text-[#0F3D3E] flex items-center justify-between">
+                      <span>توليد وتخصيص من بيانات الحجز</span>
+                      {sourceMode === "auto_booking" && <Check size={16} className="text-[#3F7859]" />}
+                    </p>
+                    <p className="text-xs text-[#8A9188] mt-0.5">
+                      استخدام البيانات المدخلة في طلب العميل وتعديلها بحرية في المحرر.
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSourceMode("uploaded_file")}
+                  className={`p-4 rounded-2xl border text-right transition-all flex items-start gap-3.5 ${
+                    sourceMode === "uploaded_file"
+                      ? "border-[#0F3D3E] bg-white shadow-sm ring-2 ring-[#0F3D3E]/10"
+                      : "border-[#DCE2D6] bg-white/60 hover:bg-white hover:border-[#8A9188]"
+                  }`}
+                >
+                  <div className={`p-2.5 rounded-xl ${sourceMode === "uploaded_file" ? "bg-[#0F3D3E] text-white" : "bg-gray-100 text-gray-600"}`}>
+                    <Upload size={20} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-extrabold text-sm text-[#0F3D3E] flex items-center justify-between">
+                      <span>رفع ملف FET جاهز (.fet)</span>
+                      {sourceMode === "uploaded_file" && <Check size={16} className="text-[#3F7859]" />}
+                    </p>
+                    <p className="text-xs text-[#8A9188] mt-0.5">
+                      رفع ملف FET تم إعداده مسبقاً وتوليده مباشرة دون إدخال البيانات يدوياً.
+                    </p>
+                  </div>
+                </button>
               </div>
+
+              {/* Direct Upload Section (if in uploaded_file mode) */}
+              {sourceMode === "uploaded_file" && (
+                <div className="bg-white p-5 rounded-2xl border border-[#DCE2D6] shadow-sm space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-extrabold text-sm text-[#0F3D3E] flex items-center gap-2">
+                        <FileCode size={18} className="text-[#3F7859]" />
+                        رفع ملف البرنامج (.fet)
+                      </h4>
+                      <p className="text-xs text-[#8A9188] mt-0.5">
+                        قم بسحب وإفلات ملف FET أو اختياره من جهازك ليتم استخراجه وتوليده فوراً.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Dropzone */}
+                  <div
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-[#DCE2D6] hover:border-[#0F3D3E] bg-[#F5F6F0]/60 hover:bg-[#F5F6F0] rounded-2xl p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-3"
+                  >
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                      accept=".fet,.xml"
+                      className="hidden"
+                    />
+                    <div className="w-14 h-14 rounded-2xl bg-white border border-[#DCE2D6] flex items-center justify-center text-[#0F3D3E] shadow-xs">
+                      <Upload size={26} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-[#0F3D3E]">
+                        انقر لاختيار ملف <span className="font-mono text-[#3F7859]">.fet</span> من جهازك
+                      </p>
+                      <p className="text-xs text-[#8A9188] mt-1">أو اسحب وأفلت الملف هنا مباشرة</p>
+                    </div>
+                  </div>
+
+                  {uploadError && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3.5 text-xs font-semibold flex items-center gap-2">
+                      <AlertTriangle size={16} />
+                      <span>{uploadError}</span>
+                    </div>
+                  )}
+
+                  {/* Uploaded File Info Summary */}
+                  {uploadedFile && (
+                    <div className="bg-[#EDF7F2] border border-[#3F7859]/30 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-[#3F7859] text-white flex items-center justify-center font-bold text-xs">
+                          FET
+                        </div>
+                        <div>
+                          <p className="font-bold text-xs text-[#0F3D3E]">{uploadedFile.name}</p>
+                          <p className="text-[11px] text-[#3F7859] font-medium">
+                            المؤسسة: {model.institution} · {model.teachers?.length} أستاذ · {model.sections?.length} قسم · {model.activities?.length} حصة
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleStartGeneration(rawUploadedXml)}
+                          className="bg-[#0F3D3E] hover:bg-[#175253] text-white px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shadow-md hover:shadow-lg"
+                        >
+                          <Play size={15} />
+                          ⚡ تشغيل التوليد فوراً من الملف
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action Banner for Auto Mode */}
+              {sourceMode === "auto_booking" && (
+                <div className="bg-white p-4 rounded-2xl border border-[#DCE2D6] shadow-sm flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-bold text-sm text-[#0F3D3E]">لوحة تحكم معطيات وقيود الحجز</h3>
+                    <p className="text-xs text-[#8A9188]">
+                      يمكنك تخصيص الأساتذة، المواد، الأقسام، والقاعات أو إضافة تفريغات وأوقات راحة قبل بدء التوليد.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={handleResetDefault}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#DCE2D6] text-[#8A9188] hover:text-[#0F3D3E] hover:border-[#0F3D3E] text-xs font-bold transition-all"
+                    >
+                      <Undo2 size={14} />
+                      استرجاع بيانات الحجز الأصلية
+                    </button>
+                    <button
+                      onClick={() => handleStartGeneration()}
+                      className="bg-[#0F3D3E] hover:bg-[#175253] text-white px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shadow-md hover:shadow-lg"
+                    >
+                      <Play size={15} />
+                      بدء التوليد بمحرك FET
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {engineError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-xs font-semibold flex items-center gap-2">
@@ -258,7 +446,14 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
               )}
 
               {/* Constraint Editor */}
-              <FetConstraintEditor model={model} onChange={setModel} />
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="font-bold text-xs text-[#0F3D3E]">
+                    {sourceMode === "uploaded_file" ? "معاينة وتعديل بيانات الملف المرفوع:" : "بيانات وقيود الحجز:"}
+                  </h4>
+                </div>
+                <FetConstraintEditor model={model} onChange={setModel} />
+              </div>
             </div>
           )}
 

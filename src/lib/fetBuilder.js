@@ -414,3 +414,153 @@ export function serializeFetModelToXml(model) {
 
   return xml;
 }
+
+/**
+ * Parses an uploaded raw FET XML string into a structured FET model object.
+ */
+export function parseFetXmlToModel(xmlContent) {
+  if (!xmlContent || typeof xmlContent !== "string") {
+    throw new Error("محتوى ملف FET غير صالح");
+  }
+
+  // 1. Institution Name
+  const instMatch = xmlContent.match(/<Institution_Name>([^<]*)<\/Institution_Name>/i);
+  const institution = instMatch ? instMatch[1].trim() : "مؤسسة تعليمية";
+
+  // 2. Days
+  const days = [];
+  const dayMatches = xmlContent.matchAll(/<Days_List>([\s\S]*?)<\/Days_List>/gi);
+  for (const match of dayMatches) {
+    const nameMatches = match[1].matchAll(/<Day>\s*<Name>([^<]*)<\/Name>\s*<\/Day>/gi);
+    for (const nm of nameMatches) {
+      if (nm[1].trim()) days.push(nm[1].trim());
+    }
+  }
+
+  // 3. Hours
+  const hours = [];
+  const hourMatches = xmlContent.matchAll(/<Hours_List>([\s\S]*?)<\/Hours_List>/gi);
+  for (const match of hourMatches) {
+    const nameMatches = match[1].matchAll(/<Hour>\s*<Name>([^<]*)<\/Name>\s*<\/Hour>/gi);
+    for (const nm of nameMatches) {
+      if (nm[1].trim()) hours.push(nm[1].trim());
+    }
+  }
+
+  // 4. Subjects
+  const subjects = [];
+  const subjMatches = xmlContent.matchAll(/<Subjects_List>([\s\S]*?)<\/Subjects_List>/gi);
+  for (const match of subjMatches) {
+    const nameMatches = match[1].matchAll(/<Subject>\s*<Name>([^<]*)<\/Name>\s*<\/Subject>/gi);
+    for (const nm of nameMatches) {
+      if (nm[1].trim()) subjects.push(nm[1].trim());
+    }
+  }
+
+  // 5. Teachers
+  const teachers = [];
+  const teacherMatches = xmlContent.matchAll(/<Teachers_List>([\s\S]*?)<\/Teachers_List>/gi);
+  for (const match of teacherMatches) {
+    const nameMatches = match[1].matchAll(/<Teacher>\s*<Name>([^<]*)<\/Name>\s*<\/Teacher>/gi);
+    for (const nm of nameMatches) {
+      if (nm[1].trim()) teachers.push({ name: nm[1].trim(), subject: "", targetHours: 18 });
+    }
+  }
+
+  // 6. Students / Groups
+  const sections = [];
+  const studentsBlock = xmlContent.match(/<Students_List>([\s\S]*?)<\/Students_List>/i);
+  if (studentsBlock) {
+    // Check for Groups first
+    const groupMatches = studentsBlock[1].matchAll(/<Group>\s*<Name>([^<]*)<\/Name>/gi);
+    for (const gm of groupMatches) {
+      if (gm[1].trim()) sections.push({ name: gm[1].trim(), year: "" });
+    }
+    // If no groups, check Years
+    if (sections.length === 0) {
+      const yearMatches = studentsBlock[1].matchAll(/<Year>\s*<Name>([^<]*)<\/Name>/gi);
+      for (const ym of yearMatches) {
+        if (ym[1].trim()) sections.push({ name: ym[1].trim(), year: ym[1].trim() });
+      }
+    }
+  }
+
+  // 7. Rooms
+  const rooms = [];
+  const roomMatches = xmlContent.matchAll(/<Rooms_List>([\s\S]*?)<\/Rooms_List>/gi);
+  for (const match of roomMatches) {
+    const rmMatches = match[1].matchAll(/<Room>\s*<Name>([^<]*)<\/Name>(?:\s*<Capacity>(\d+)<\/Capacity>)?/gi);
+    for (const rm of rmMatches) {
+      if (rm[1].trim()) {
+        rooms.push({
+          name: rm[1].trim(),
+          type: "standard",
+          capacity: rm[2] ? parseInt(rm[2]) : 40
+        });
+      }
+    }
+  }
+
+  // 8. Activities
+  const activities = [];
+  const actRegex = /<Activity>([\s\S]*?)<\/Activity>/gi;
+  let actMatch;
+  while ((actMatch = actRegex.exec(xmlContent)) !== null) {
+    const block = actMatch[1];
+    const idM = block.match(/<Id>(\d+)<\/Id>/i);
+    const teacherM = block.match(/<Teacher>([^<]*)<\/Teacher>/i);
+    const subjM = block.match(/<Subject>([^<]*)<\/Subject>/i);
+    const durM = block.match(/<Duration>(\d+)<\/Duration>/i);
+    const studentsM = block.match(/<Students>([^<]*)<\/Students>/i);
+
+    if (idM) {
+      activities.push({
+        id: parseInt(idM[1]),
+        teacher: teacherM ? teacherM[1].trim() : "",
+        subject: subjM ? subjM[1].trim() : "",
+        students: studentsM ? studentsM[1].trim() : (sections[0]?.name || ""),
+        duration: durM ? parseInt(durM[1]) : 1,
+        active: true
+      });
+    }
+  }
+
+  // 9. Time Constraints: TeacherNotAvailableTimes
+  const teacherNotAvailableTimes = {};
+  const notAvailRegex = /<ConstraintTeacherNotAvailableTimes>([\s\S]*?)<\/ConstraintTeacherNotAvailableTimes>/gi;
+  let naMatch;
+  while ((naMatch = notAvailRegex.exec(xmlContent)) !== null) {
+    const block = naMatch[1];
+    const tNameM = block.match(/<Teacher_Name>([^<]*)<\/Teacher_Name>/i);
+    if (!tNameM) continue;
+    const tName = tNameM[1].trim();
+    if (!teacherNotAvailableTimes[tName]) teacherNotAvailableTimes[tName] = [];
+
+    const slotRegex = /<Day>([^<]*)<\/Day>\s*<Hour>([^<]*)<\/Hour>/gi;
+    let slotM;
+    while ((slotM = slotRegex.exec(block)) !== null) {
+      teacherNotAvailableTimes[tName].push({
+        day: slotM[1].trim(),
+        hour: slotM[2].trim()
+      });
+    }
+  }
+
+  return {
+    institution: institution || "المؤسسة التعليمية",
+    days: days.length > 0 ? days : ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"],
+    hours: hours.length > 0 ? hours : ["ح1 (08:00-09:00)", "ح2 (09:00-10:00)", "ح3 (10:00-11:00)", "ح4 (11:00-12:00)", "ح5 (13:00-14:00)", "ح6 (14:00-15:00)", "ح7 (15:00-16:00)"],
+    subjects: subjects.length > 0 ? subjects : ["لغة عربية", "رياضيات", "علوم"],
+    teachers: teachers.length > 0 ? teachers : [{ name: "أستاذ عام", subject: "", targetHours: 18 }],
+    sections: sections.length > 0 ? sections : [{ name: "قسم 1", year: "1" }],
+    rooms: rooms.length > 0 ? rooms : [{ name: "حجرة 1", type: "standard", capacity: 40 }],
+    activities: activities,
+    constraints: {
+      teacherNotAvailableTimes,
+      teacherMaxHoursDaily: {},
+      teacherMaxDaysPerWeek: {},
+      subjectPreferredRooms: {},
+      activityPreferredRooms: {}
+    }
+  };
+}
