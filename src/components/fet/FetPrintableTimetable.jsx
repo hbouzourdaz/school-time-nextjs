@@ -104,10 +104,10 @@ export default function FetPrintableTimetable({
       "09:00-10:00",
       "10:00-11:00",
       "11:00-12:00",
-      "13:30-14:30",
-      "14:30-15:30",
-      "15:30-16:30",
-      "16:30-17:30"
+      "13:00-14:00",
+      "14:00-15:00",
+      "15:00-16:00",
+      "16:00-17:00"
     ];
   }, [model.hours, timetable]);
 
@@ -568,7 +568,7 @@ function Exp2FetTeacherTable({ teacherName, teacherSubj, teacherIdx, timetable, 
             <tr className="bg-[#1E293B] text-white font-extrabold text-xs divide-x divide-x-reverse divide-gray-700">
               <th className="p-2.5 w-20 font-black">اليوم</th>
               {hours.map((h, i) => (
-                <th key={i} className={`p-2.5 font-bold ${i === 3 ? "border-l-4 border-gray-500" : ""}`}>
+                <th key={i} className="p-2.5 font-bold">
                   {h}
                 </th>
               ))}
@@ -585,20 +585,6 @@ function Exp2FetTeacherTable({ teacherName, teacherSubj, teacherIdx, timetable, 
                 {/* Hours Columns */}
                 {hours.map((hour, hIdx) => {
                   const acts = getMatchingActivities(timetable, "teacher", teacherName, day, hour, dIdx, hIdx, days, hours);
-                  const isMorningEnd = hIdx === 3;
-
-                  // Remedial / استدراك slot detection
-                  const isRemedial = day.includes("الأربعاء") && hIdx === 5 && acts.length === 0;
-
-                  if (isRemedial) {
-                    return (
-                      <td key={hIdx} className={`p-1 bg-[#1E293B] text-white font-extrabold border-l border-gray-300 ${isMorningEnd ? "border-l-4 border-gray-600" : ""}`}>
-                        <div className="h-full rounded-lg flex items-center justify-center text-xs tracking-wider">
-                          استدراك
-                        </div>
-                      </td>
-                    );
-                  }
 
                   if (acts.length > 0) {
                     const cellAct = acts[0];
@@ -606,7 +592,7 @@ function Exp2FetTeacherTable({ teacherName, teacherSubj, teacherIdx, timetable, 
                     const isTD = cellAct.subject && (cellAct.subject.includes("TD") || cellAct.subject.includes("تطبيقي"));
 
                     return (
-                      <td key={hIdx} className={`p-1 border-l border-gray-300 ${isMorningEnd ? "border-l-4 border-gray-500" : ""}`}>
+                      <td key={hIdx} className="p-1 border-l border-gray-300">
                         <div
                           className="h-full p-1.5 rounded-lg flex flex-col justify-between items-center text-center transition-all shadow-2xs"
                           style={{ backgroundColor: theme.bg }}
@@ -627,10 +613,7 @@ function Exp2FetTeacherTable({ teacherName, teacherSubj, teacherIdx, timetable, 
 
                   // Non-working / Free Slot
                   return (
-                    <td
-                      key={hIdx}
-                      className={`p-1 border-l border-gray-300 striped-cell ${isMorningEnd ? "border-l-4 border-gray-500" : ""}`}
-                    >
+                    <td key={hIdx} className="p-1 border-l border-gray-300 striped-cell">
                       <div className="h-full min-h-[64px]" />
                     </td>
                   );
@@ -713,7 +696,7 @@ function Exp2FetSectionTable({ sectionName, timetable, days, hours, model, isMon
             <tr className="bg-[#1E293B] text-white font-extrabold text-xs divide-x divide-x-reverse divide-gray-700">
               <th className="p-2.5 w-20 font-black">اليوم</th>
               {hours.map((h, i) => (
-                <th key={i} className={`p-2.5 font-bold ${i === 3 ? "border-l-4 border-gray-500" : ""}`}>
+                <th key={i} className="p-2.5 font-bold">
                   {h}
                 </th>
               ))}
@@ -730,18 +713,6 @@ function Exp2FetSectionTable({ sectionName, timetable, days, hours, model, isMon
                 {/* Hours Columns */}
                 {hours.map((hour, hIdx) => {
                   const acts = getMatchingActivities(timetable, "students", sectionName, day, hour, dIdx, hIdx, days, hours);
-                  const isMorningEnd = hIdx === 3;
-                  const isRemedial = day.includes("الأربعاء") && hIdx === 5 && acts.length === 0;
-
-                  if (isRemedial) {
-                    return (
-                      <td key={hIdx} className={`p-1 bg-[#1E293B] text-white font-extrabold border-l border-gray-300 ${isMorningEnd ? "border-l-4 border-gray-600" : ""}`}>
-                        <div className="h-full rounded-lg flex items-center justify-center text-xs tracking-wider">
-                          استدراك
-                        </div>
-                      </td>
-                    );
-                  }
 
                   // Single Activity Cell
                   if (acts.length === 1) {
@@ -749,7 +720,7 @@ function Exp2FetSectionTable({ sectionName, timetable, days, hours, model, isMon
                     const theme = getSubjectTheme(cellAct.subject, isMonochrome);
 
                     return (
-                      <td key={hIdx} className={`p-1 border-l border-gray-300 ${isMorningEnd ? "border-l-4 border-gray-500" : ""}`}>
+                      <td key={hIdx} className="p-1 border-l border-gray-300">
                         <div
                           className="h-full p-1.5 rounded-lg flex flex-col justify-between items-center text-center transition-all shadow-2xs"
                           style={{ backgroundColor: theme.bg }}
@@ -771,7 +742,7 @@ function Exp2FetSectionTable({ sectionName, timetable, days, hours, model, isMon
                   // Split Subgroup Cell (TP / TD)
                   if (acts.length > 1) {
                     return (
-                      <td key={hIdx} className={`p-0.5 border-l border-gray-300 ${isMorningEnd ? "border-l-4 border-gray-500" : ""}`}>
+                      <td key={hIdx} className="p-0.5 border-l border-gray-300">
                         <div className="h-full flex flex-col gap-0.5">
                           {acts.map((subAct, subIdx) => {
                             const subTheme = getSubjectTheme(subAct.subject, isMonochrome);
@@ -796,10 +767,7 @@ function Exp2FetSectionTable({ sectionName, timetable, days, hours, model, isMon
 
                   // Non-working Slot
                   return (
-                    <td
-                      key={hIdx}
-                      className={`p-1 border-l border-gray-300 striped-cell ${isMorningEnd ? "border-l-4 border-gray-500" : ""}`}
-                    >
+                    <td key={hIdx} className="p-1 border-l border-gray-300 striped-cell">
                       <div className="h-full min-h-[70px]" />
                     </td>
                   );
