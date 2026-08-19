@@ -16,12 +16,13 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /build
 
-# جلب رقم أحدث إصدار تلقائياً من الموقع، تحميله، وفك ضغطه
-RUN LATEST_FET=$(curl -s https://lalescu.ro/liviu/fet/download/ | grep -oP 'href="fet-\K([0-9]+\.[0-9]+\.[0-9]+)(?=\.tar\.bz2")' | sort -V | tail -n 1) \
-    && echo "Downloading latest FET version: $LATEST_FET" \
-    && wget https://lalescu.ro/liviu/fet/download/fet-$LATEST_FET.tar.bz2 \
-    && tar -xjf fet-$LATEST_FET.tar.bz2 \
-    && mv fet-$LATEST_FET fet-latest
+# جلب أحدث ملف تلقائياً من الموقع، تحميله، وفك ضغطه
+RUN LATEST_FILE=$(curl -s https://lalescu.ro/liviu/fet/download/ | grep -o 'fet-[0-9]\+\.[0-9]\+\.[0-9]\+\.tar\.bz2' | sort -V | tail -n 1) \
+    && echo "Downloading latest FET file: $LATEST_FILE" \
+    && wget https://lalescu.ro/liviu/fet/download/$LATEST_FILE \
+    && tar -xjf $LATEST_FILE \
+    && DIR_NAME=$(echo $LATEST_FILE | sed 's/.tar.bz2//') \
+    && mv $DIR_NAME fet-latest
 
 WORKDIR /build/fet-latest
 
