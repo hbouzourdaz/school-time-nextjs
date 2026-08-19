@@ -460,109 +460,193 @@ export function serializeFetModelToXml(model) {
 }
 
 /**
- * Parses an uploaded raw FET XML string into a structured FET model object.
+ * Parses an uploaded raw FET XML string into a structured FET model object accurately.
  */
 export function parseFetXmlToModel(xmlContent) {
   if (!xmlContent || typeof xmlContent !== "string") {
     throw new Error("محتوى ملف FET غير صالح");
   }
 
+  let doc = null;
+  if (typeof DOMParser !== "undefined") {
+    try {
+      const parser = new DOMParser();
+      doc = parser.parseFromString(xmlContent, "text/xml");
+    } catch (e) {
+      doc = null;
+    }
+  }
+
   // 1. Institution Name
-  const instMatch = xmlContent.match(/<Institution_Name>([^<]*)<\/Institution_Name>/i);
-  const institution = instMatch ? instMatch[1].trim() : "مؤسسة تعليمية";
+  let institution = "";
+  if (doc) {
+    institution = doc.querySelector("Institution_Name")?.textContent?.trim() || "";
+  }
+  if (!institution) {
+    const instMatch = xmlContent.match(/<Institution_Name>([^<]*)<\/Institution_Name>/i);
+    institution = instMatch ? instMatch[1].trim() : "مؤسسة تعليمية";
+  }
 
   // 2. Days
-  const days = [];
-  const dayMatches = xmlContent.matchAll(/<Days_List>([\s\S]*?)<\/Days_List>/gi);
-  for (const match of dayMatches) {
-    const nameMatches = match[1].matchAll(/<Day>\s*<Name>([^<]*)<\/Name>\s*<\/Day>/gi);
-    for (const nm of nameMatches) {
-      if (nm[1].trim()) days.push(nm[1].trim());
+  const daysSet = new Set();
+  if (doc) {
+    doc.querySelectorAll("Days_List > Day > Name, Days_List Day Name").forEach(el => {
+      if (el.textContent?.trim()) daysSet.add(el.textContent.trim());
+    });
+  }
+  if (daysSet.size === 0) {
+    const daysBlock = xmlContent.match(/<Days_List>([\s\S]*?)<\/Days_List>/i);
+    if (daysBlock) {
+      const nameMatches = daysBlock[1].matchAll(/<Name>([^<]+)<\/Name>/gi);
+      for (const nm of nameMatches) {
+        if (nm[1].trim()) daysSet.add(nm[1].trim());
+      }
     }
   }
+  const days = Array.from(daysSet);
 
   // 3. Hours
-  const hours = [];
-  const hourMatches = xmlContent.matchAll(/<Hours_List>([\s\S]*?)<\/Hours_List>/gi);
-  for (const match of hourMatches) {
-    const nameMatches = match[1].matchAll(/<Hour>\s*<Name>([^<]*)<\/Name>\s*<\/Hour>/gi);
-    for (const nm of nameMatches) {
-      if (nm[1].trim()) hours.push(nm[1].trim());
+  const hoursSet = new Set();
+  if (doc) {
+    doc.querySelectorAll("Hours_List > Hour > Name, Hours_List Hour Name").forEach(el => {
+      if (el.textContent?.trim()) hoursSet.add(el.textContent.trim());
+    });
+  }
+  if (hoursSet.size === 0) {
+    const hoursBlock = xmlContent.match(/<Hours_List>([\s\S]*?)<\/Hours_List>/i);
+    if (hoursBlock) {
+      const nameMatches = hoursBlock[1].matchAll(/<Name>([^<]+)<\/Name>/gi);
+      for (const nm of nameMatches) {
+        if (nm[1].trim()) hoursSet.add(nm[1].trim());
+      }
     }
   }
+  const hours = Array.from(hoursSet);
 
   // 4. Subjects
-  const subjects = [];
-  const subjMatches = xmlContent.matchAll(/<Subjects_List>([\s\S]*?)<\/Subjects_List>/gi);
-  for (const match of subjMatches) {
-    const nameMatches = match[1].matchAll(/<Subject>\s*<Name>([^<]*)<\/Name>\s*<\/Subject>/gi);
-    for (const nm of nameMatches) {
-      if (nm[1].trim()) subjects.push(nm[1].trim());
+  const subjectsSet = new Set();
+  if (doc) {
+    doc.querySelectorAll("Subjects_List > Subject > Name, Subjects_List Subject Name").forEach(el => {
+      if (el.textContent?.trim()) subjectsSet.add(el.textContent.trim());
+    });
+  }
+  if (subjectsSet.size === 0) {
+    const subjBlock = xmlContent.match(/<Subjects_List>([\s\S]*?)<\/Subjects_List>/i);
+    if (subjBlock) {
+      const nameMatches = subjBlock[1].matchAll(/<Subject>[\s\S]*?<Name>([^<]+)<\/Name>/gi);
+      for (const nm of nameMatches) {
+        if (nm[1].trim()) subjectsSet.add(nm[1].trim());
+      }
     }
   }
 
   // 5. Teachers
-  const teachers = [];
-  const teacherMatches = xmlContent.matchAll(/<Teachers_List>([\s\S]*?)<\/Teachers_List>/gi);
-  for (const match of teacherMatches) {
-    const nameMatches = match[1].matchAll(/<Teacher>\s*<Name>([^<]*)<\/Name>\s*<\/Teacher>/gi);
-    for (const nm of nameMatches) {
-      if (nm[1].trim()) teachers.push({ name: nm[1].trim(), subject: "", targetHours: 18 });
+  const teachersSet = new Set();
+  if (doc) {
+    doc.querySelectorAll("Teachers_List > Teacher > Name, Teachers_List Teacher Name").forEach(el => {
+      if (el.textContent?.trim()) teachersSet.add(el.textContent.trim());
+    });
+  }
+  if (teachersSet.size === 0) {
+    const teachBlock = xmlContent.match(/<Teachers_List>([\s\S]*?)<\/Teachers_List>/i);
+    if (teachBlock) {
+      const nameMatches = teachBlock[1].matchAll(/<Teacher>[\s\S]*?<Name>([^<]+)<\/Name>/gi);
+      for (const nm of nameMatches) {
+        if (nm[1].trim()) teachersSet.add(nm[1].trim());
+      }
     }
   }
 
-  // 6. Students / Groups
-  const sections = [];
-  const studentsBlock = xmlContent.match(/<Students_List>([\s\S]*?)<\/Students_List>/i);
-  if (studentsBlock) {
-    // Check for Groups first
-    const groupMatches = studentsBlock[1].matchAll(/<Group>\s*<Name>([^<]*)<\/Name>/gi);
-    for (const gm of groupMatches) {
-      if (gm[1].trim()) sections.push({ name: gm[1].trim(), year: "" });
-    }
-    // If no groups, check Years
-    if (sections.length === 0) {
-      const yearMatches = studentsBlock[1].matchAll(/<Year>\s*<Name>([^<]*)<\/Name>/gi);
-      for (const ym of yearMatches) {
-        if (ym[1].trim()) sections.push({ name: ym[1].trim(), year: ym[1].trim() });
+  // 6. Students / Groups / Sections
+  const sectionsSet = new Set();
+  if (doc) {
+    doc.querySelectorAll("Students_List Group > Name, Students_List Group Name, Students_List Year > Name").forEach(el => {
+      if (el.textContent?.trim()) sectionsSet.add(el.textContent.trim());
+    });
+  }
+  if (sectionsSet.size === 0) {
+    const studentsBlock = xmlContent.match(/<Students_List>([\s\S]*?)<\/Students_List>/i);
+    if (studentsBlock) {
+      const groupMatches = studentsBlock[1].matchAll(/<Group>[\s\S]*?<Name>([^<]+)<\/Name>/gi);
+      for (const gm of groupMatches) {
+        if (gm[1].trim()) sectionsSet.add(gm[1].trim());
+      }
+      if (sectionsSet.size === 0) {
+        const yearMatches = studentsBlock[1].matchAll(/<Year>[\s\S]*?<Name>([^<]+)<\/Name>/gi);
+        for (const ym of yearMatches) {
+          if (ym[1].trim()) sectionsSet.add(ym[1].trim());
+        }
       }
     }
   }
 
   // 7. Rooms
-  const rooms = [];
-  const roomMatches = xmlContent.matchAll(/<Rooms_List>([\s\S]*?)<\/Rooms_List>/gi);
-  for (const match of roomMatches) {
-    const rmMatches = match[1].matchAll(/<Room>\s*<Name>([^<]*)<\/Name>(?:\s*<Capacity>(\d+)<\/Capacity>)?/gi);
-    for (const rm of rmMatches) {
-      if (rm[1].trim()) {
-        rooms.push({
-          name: rm[1].trim(),
-          type: "standard",
-          capacity: rm[2] ? parseInt(rm[2]) : 40
-        });
+  const roomsSet = new Set();
+  if (doc) {
+    doc.querySelectorAll("Rooms_List > Room > Name, Rooms_List Room Name").forEach(el => {
+      if (el.textContent?.trim()) roomsSet.add(el.textContent.trim());
+    });
+  }
+  if (roomsSet.size === 0) {
+    const roomBlock = xmlContent.match(/<Rooms_List>([\s\S]*?)<\/Rooms_List>/i);
+    if (roomBlock) {
+      const rmMatches = roomBlock[1].matchAll(/<Room>[\s\S]*?<Name>([^<]+)<\/Name>/gi);
+      for (const rm of rmMatches) {
+        if (rm[1].trim()) roomsSet.add(rm[1].trim());
       }
     }
   }
 
   // 8. Activities
   const activities = [];
-  const actRegex = /<Activity>([\s\S]*?)<\/Activity>/gi;
-  let actMatch;
-  while ((actMatch = actRegex.exec(xmlContent)) !== null) {
-    const block = actMatch[1];
-    const idM = block.match(/<Id>(\d+)<\/Id>/i);
-    const teacherM = block.match(/<Teacher>([^<]*)<\/Teacher>/i);
-    const subjM = block.match(/<Subject>([^<]*)<\/Subject>/i);
-    const durM = block.match(/<Duration>(\d+)<\/Duration>/i);
-    const studentsM = block.match(/<Students>([^<]*)<\/Students>/i);
+  if (doc) {
+    doc.querySelectorAll("Activities_List > Activity, Activities_List Activity").forEach((actEl, idx) => {
+      const id = parseInt(actEl.querySelector("Id")?.textContent?.trim() || `${idx + 1}`);
+      const teacher = actEl.querySelector("Teacher")?.textContent?.trim() || "";
+      const subject = actEl.querySelector("Subject")?.textContent?.trim() || "";
+      const duration = parseInt(actEl.querySelector("Duration")?.textContent?.trim() || "1");
+      const students = actEl.querySelector("Students")?.textContent?.trim() || "";
 
-    if (idM) {
+      if (teacher) teachersSet.add(teacher);
+      if (subject) subjectsSet.add(subject);
+      if (students) sectionsSet.add(students);
+
       activities.push({
-        id: parseInt(idM[1]),
-        teacher: teacherM ? teacherM[1].trim() : "",
-        subject: subjM ? subjM[1].trim() : "",
-        students: studentsM ? studentsM[1].trim() : (sections[0]?.name || ""),
+        id,
+        teacher,
+        subject,
+        students,
+        duration,
+        active: true
+      });
+    });
+  }
+
+  if (activities.length === 0) {
+    const actRegex = /<Activity>([\s\S]*?)<\/Activity>/gi;
+    let actMatch;
+    let fallbackIdx = 1;
+    while ((actMatch = actRegex.exec(xmlContent)) !== null) {
+      const block = actMatch[1];
+      const idM = block.match(/<Id>(\d+)<\/Id>/i);
+      const teacherM = block.match(/<Teacher>([^<]*)<\/Teacher>/i);
+      const subjM = block.match(/<Subject>([^<]*)<\/Subject>/i);
+      const durM = block.match(/<Duration>(\d+)<\/Duration>/i);
+      const studentsM = block.match(/<Students>([^<]*)<\/Students>/i);
+
+      const teacher = teacherM ? teacherM[1].trim() : "";
+      const subject = subjM ? subjM[1].trim() : "";
+      const students = studentsM ? studentsM[1].trim() : "";
+
+      if (teacher) teachersSet.add(teacher);
+      if (subject) subjectsSet.add(subject);
+      if (students) sectionsSet.add(students);
+
+      activities.push({
+        id: idM ? parseInt(idM[1]) : fallbackIdx++,
+        teacher,
+        subject,
+        students,
         duration: durM ? parseInt(durM[1]) : 1,
         active: true
       });
@@ -590,14 +674,19 @@ export function parseFetXmlToModel(xmlContent) {
     }
   }
 
+  const finalSubjects = Array.from(subjectsSet);
+  const finalTeachers = Array.from(teachersSet).map(name => ({ name, subject: "", targetHours: 18 }));
+  const finalSections = Array.from(sectionsSet).map(name => ({ name, year: "" }));
+  const finalRooms = Array.from(roomsSet).map(name => ({ name, type: "standard", capacity: 40 }));
+
   return {
     institution: institution || "المؤسسة التعليمية",
     days: days.length > 0 ? days : ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"],
-    hours: hours.length > 0 ? hours : ["ح1 (08:00-09:00)", "ح2 (09:00-10:00)", "ح3 (10:00-11:00)", "ح4 (11:00-12:00)", "ح5 (13:00-14:00)", "ح6 (14:00-15:00)", "ح7 (15:00-16:00)"],
-    subjects: subjects.length > 0 ? subjects : ["لغة عربية", "رياضيات", "علوم"],
-    teachers: teachers.length > 0 ? teachers : [{ name: "أستاذ عام", subject: "", targetHours: 18 }],
-    sections: sections.length > 0 ? sections : [{ name: "قسم 1", year: "1" }],
-    rooms: rooms.length > 0 ? rooms : [{ name: "حجرة 1", type: "standard", capacity: 40 }],
+    hours: hours.length > 0 ? hours : ["ح1", "ح2", "ح3", "ح4", "ح5", "ح6", "ح7"],
+    subjects: finalSubjects,
+    teachers: finalTeachers,
+    sections: finalSections,
+    rooms: finalRooms,
     activities: activities,
     constraints: {
       teacherNotAvailableTimes,
