@@ -1,34 +1,70 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import {
   Printer, Download, Save, CheckCircle2, Users, GraduationCap,
   Layers, Eye, FileText, ArrowRight, Share2, Sparkles, ZoomIn,
-  ZoomOut, Palette, Check, Building2
+  ZoomOut, Palette, Check, Building2, Clock, Calendar
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════
-   Harmonious Educational Subject Color Palettes
+   Harmonious Educational Palette (Exp2Fet Styled)
    ═══════════════════════════════════════════════════ */
-const COLOR_PALETTE = [
-  { bg: "#EBF5FB", border: "#2980B9", text: "#1A5276", badge: "#D4E6F1" }, // Blue
-  { bg: "#EAFAF1", border: "#27AE60", text: "#196F3D", badge: "#D5F5E3" }, // Green
-  { bg: "#FEF9E7", border: "#F39C12", text: "#9A7D0A", badge: "#FCF3CF" }, // Amber
-  { bg: "#F4ECF7", border: "#8E44AD", text: "#5B2C6F", badge: "#E8DAEF" }, // Purple
-  { bg: "#FDEDEC", border: "#E74C3C", text: "#922B21", badge: "#FADBD8" }, // Red
-  { bg: "#E8F8F5", border: "#1ABC9C", text: "#117864", badge: "#D1F2EB" }, // Teal
-  { bg: "#FBEEE6", border: "#E67E22", text: "#A04000", badge: "#F6DDCC" }, // Orange
-  { bg: "#EAECEE", border: "#34495E", text: "#212F3D", badge: "#D5D8DC" }, // Navy / Slate
-  { bg: "#F5EEF8", border: "#9B59B6", text: "#6C3483", badge: "#EBDEF0" }, // Violet
-  { bg: "#E8F6F3", border: "#16A085", text: "#0E6655", badge: "#D0ECE7" }, // Emerald
+const SUBJECT_COLORS = {
+  "لغة عربية": { bg: "#BAE6FD", border: "#0284C7", text: "#0369A1", subBg: "#E0F2FE" }, // Light Blue
+  "التربية الإسلامية": { bg: "#FEF08A", border: "#CA8A04", text: "#854D0E", subBg: "#FEF9C3" }, // Yellow / Gold
+  "الرياضيات": { bg: "#FECDD3", border: "#E11D48", text: "#9F1239", subBg: "#FFE4E6" }, // Rose / Pink
+  "اللغة الفرنسية": { bg: "#FED7AA", border: "#EA580C", text: "#9A3412", subBg: "#FFEDD5" }, // Orange / Peach
+  "اللغة الإنجليزية": { bg: "#DDD6FE", border: "#7C3AED", text: "#5B21B6", subBg: "#EDE9FE" }, // Purple / Violet
+  "التاريخ والجغرافيا": { bg: "#BBF7D0", border: "#16A34A", text: "#166534", subBg: "#DCFCE7" }, // Mint Green
+  "العلوم الطبيعية": { bg: "#99F6E4", border: "#0D9488", text: "#115E59", subBg: "#CCFBF1" }, // Teal
+  "العلوم الفيزيائية": { bg: "#E9D5FF", border: "#9333EA", text: "#6B21A8", subBg: "#F3E8FF" }, // Light Violet
+  "التربية البدنية": { bg: "#BAE6FD", border: "#0284C7", text: "#075985", subBg: "#E0F2FE" }, // Sky Blue
+  "الإعلام الآلي": { bg: "#A7F3D0", border: "#059669", text: "#065F46", subBg: "#D1FAE5" }, // Emerald
+  "اللغة الأمازيغية": { bg: "#FDE68A", border: "#D97706", text: "#92400E", subBg: "#FEF3C7" }, // Amber
+  "التربية التشكيلية": { bg: "#FBCFE8", border: "#DB2777", text: "#9D174D", subBg: "#FCE7F3" }, // Pink
+  "التربية الموسيقية": { bg: "#C7D2FE", border: "#4F46E5", text: "#3730A3", subBg: "#E0E7FF" }, // Indigo
+};
+
+// Fallback dynamic colors for custom subjects
+const FALLBACK_PALETTES = [
+  { bg: "#BAE6FD", border: "#0284C7", text: "#0369A1", subBg: "#E0F2FE" },
+  { bg: "#FECDD3", border: "#E11D48", text: "#9F1239", subBg: "#FFE4E6" },
+  { bg: "#FED7AA", border: "#EA580C", text: "#9A3412", subBg: "#FFEDD5" },
+  { bg: "#DDD6FE", border: "#7C3AED", text: "#5B21B6", subBg: "#EDE9FE" },
+  { bg: "#BBF7D0", border: "#16A34A", text: "#166534", subBg: "#DCFCE7" },
+  { bg: "#99F6E4", border: "#0D9488", text: "#115E59", subBg: "#CCFBF1" },
 ];
 
-function getSubjectColor(subject, allSubjects, isMonochrome = false) {
+function getSubjectTheme(subjectName, isMonochrome = false) {
   if (isMonochrome) {
-    return { bg: "#FFFFFF", border: "#000000", text: "#000000", badge: "#F0F0F0" };
+    return { bg: "#FFFFFF", border: "#000000", text: "#000000", subBg: "#F3F4F6" };
   }
-  const idx = allSubjects.indexOf(subject);
-  return COLOR_PALETTE[idx >= 0 ? idx % COLOR_PALETTE.length : 0];
+  if (!subjectName) return FALLBACK_PALETTES[0];
+
+  // Look for exact or partial match
+  for (const [key, val] of Object.entries(SUBJECT_COLORS)) {
+    if (subjectName.includes(key) || key.includes(subjectName)) return val;
+  }
+
+  // Hash-based index
+  let hash = 0;
+  for (let i = 0; i < subjectName.length; i++) hash += subjectName.charCodeAt(i);
+  return FALLBACK_PALETTES[hash % FALLBACK_PALETTES.length];
 }
+
+// Fixed standard Algerian Middle/Secondary periods
+const STANDARD_HOURS = [
+  "08:00-09:00",
+  "09:00-10:00",
+  "10:00-11:00",
+  "11:00-12:00",
+  "13:30-14:30",
+  "14:30-15:30",
+  "15:30-16:30",
+  "16:30-17:30"
+];
+
+const STANDARD_DAYS = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس"];
 
 export default function FetPrintableTimetable({
   timetable = [],
@@ -51,13 +87,34 @@ export default function FetPrintableTimetable({
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  const days = model.days || ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"];
-  const hours = model.hours || [];
-  const allSubjects = (model.subjects || []).map((s) => (typeof s === "string" ? s : s.name));
+  const days = STANDARD_DAYS;
+  const hours = STANDARD_HOURS;
   const institutionName = model.institution || booking?.institution_name || "المؤسسة التعليمية";
-  const wilaya = booking?.wilaya || "الجزائر";
-  const currentYear = new Date().getFullYear();
-  const schoolYear = `${currentYear} / ${currentYear + 1}`;
+
+  // Normalize timetable data to standard hours format
+  const normalizedTimetable = useMemo(() => {
+    return (timetable || []).map((item) => {
+      let normalizedHour = item.hour;
+      // Map "ح1 (08:00-09:00)" or "ح1" to "08:00-09:00"
+      if (item.hour.includes("08:00") || item.hour.startsWith("ح1")) normalizedHour = "08:00-09:00";
+      else if (item.hour.includes("09:00") || item.hour.startsWith("ح2")) normalizedHour = "09:00-10:00";
+      else if (item.hour.includes("10:00") || item.hour.startsWith("ح3")) normalizedHour = "10:00-11:00";
+      else if (item.hour.includes("11:00") || item.hour.startsWith("ح4")) normalizedHour = "11:00-12:00";
+      else if (item.hour.includes("13:00") || item.hour.includes("13:30") || item.hour.startsWith("ح5")) normalizedHour = "13:30-14:30";
+      else if (item.hour.includes("14:00") || item.hour.includes("14:30") || item.hour.startsWith("ح6")) normalizedHour = "14:30-15:30";
+      else if (item.hour.includes("15:00") || item.hour.includes("15:30") || item.hour.startsWith("ح7")) normalizedHour = "15:30-16:30";
+      else if (item.hour.includes("16:00") || item.hour.includes("16:30") || item.hour.startsWith("ح8")) normalizedHour = "16:30-17:30";
+
+      let normalizedDay = item.day;
+      if (item.day === "الاثنين") normalizedDay = "الإثنين";
+
+      return {
+        ...item,
+        hour: normalizedHour,
+        day: normalizedDay
+      };
+    });
+  }, [timetable]);
 
   // Execute standard print
   const handlePrint = (printAll = false) => {
@@ -86,7 +143,7 @@ export default function FetPrintableTimetable({
     try {
       await onSaveToBooking({
         resultFetContent,
-        timetable,
+        timetable: normalizedTimetable,
         model
       });
       setSavedSuccess(true);
@@ -163,7 +220,7 @@ export default function FetPrintableTimetable({
             >
               {model.teachers?.map((t, i) => {
                 const name = typeof t === "string" ? t : t.name;
-                return <option key={i} value={name}>الأستاذ: {name}</option>;
+                return <option key={i} value={name}>الأستاذ(ة): {name}</option>;
               })}
             </select>
           )}
@@ -266,47 +323,29 @@ export default function FetPrintableTimetable({
                 return (
                   <div
                     key={sIdx}
-                    className="printable-page bg-white p-6 sm:p-9 rounded-3xl border border-[#DCE2D6] shadow-sm mb-8 print:border-none print:shadow-none print:p-0 print:m-0 print:page-break-after-always"
+                    className="printable-page bg-white p-6 sm:p-8 rounded-3xl border border-[#DCE2D6] shadow-sm mb-8 print:border-none print:shadow-none print:p-0 print:m-0 print:page-break-after-always"
                   >
-                    <TimetableHeader
-                      institutionName={institutionName}
-                      wilaya={wilaya}
-                      schoolYear={schoolYear}
-                      title={`جدول توقيت الفوج التربوي: ${secName}`}
-                      subtitle="قسم / فوج دراسي"
-                    />
-                    <SingleTimetableGrid
-                      filterType="students"
-                      filterValue={secName}
-                      timetable={timetable}
+                    <Exp2FetSectionTable
+                      sectionName={secName}
+                      timetable={normalizedTimetable}
                       days={days}
                       hours={hours}
-                      allSubjects={allSubjects}
+                      model={model}
                       isMonochrome={isMonochrome}
                     />
-                    <TimetableFooter />
                   </div>
                 );
               })
             ) : (
-              <div className="bg-white p-6 sm:p-9 rounded-3xl border border-[#DCE2D6] shadow-sm print:border-none print:shadow-none print:p-0">
-                <TimetableHeader
-                  institutionName={institutionName}
-                  wilaya={wilaya}
-                  schoolYear={schoolYear}
-                  title={`جدول توقيت الفوج التربوي: ${selectedSection}`}
-                  subtitle="قسم / فوج دراسي"
-                />
-                <SingleTimetableGrid
-                  filterType="students"
-                  filterValue={selectedSection}
-                  timetable={timetable}
+              <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#DCE2D6] shadow-sm print:border-none print:shadow-none print:p-0">
+                <Exp2FetSectionTable
+                  sectionName={selectedSection}
+                  timetable={normalizedTimetable}
                   days={days}
                   hours={hours}
-                  allSubjects={allSubjects}
+                  model={model}
                   isMonochrome={isMonochrome}
                 />
-                <TimetableFooter />
               </div>
             )}
           </>
@@ -322,47 +361,33 @@ export default function FetPrintableTimetable({
                 return (
                   <div
                     key={tIdx}
-                    className="printable-page bg-white p-6 sm:p-9 rounded-3xl border border-[#DCE2D6] shadow-sm mb-8 print:border-none print:shadow-none print:p-0 print:m-0 print:page-break-after-always"
+                    className="printable-page bg-white p-6 sm:p-8 rounded-3xl border border-[#DCE2D6] shadow-sm mb-8 print:border-none print:shadow-none print:p-0 print:m-0 print:page-break-after-always"
                   >
-                    <TimetableHeader
-                      institutionName={institutionName}
-                      wilaya={wilaya}
-                      schoolYear={schoolYear}
-                      title={`جدول توقيت الأستاذ(ة): ${tchName}`}
-                      subtitle={tchSubj ? `مادة التخصص: ${tchSubj}` : "أستاذ التعليم"}
-                    />
-                    <SingleTimetableGrid
-                      filterType="teacher"
-                      filterValue={tchName}
-                      timetable={timetable}
+                    <Exp2FetTeacherTable
+                      teacherName={tchName}
+                      teacherSubj={tchSubj}
+                      teacherIdx={tIdx + 1}
+                      timetable={normalizedTimetable}
                       days={days}
                       hours={hours}
-                      allSubjects={allSubjects}
+                      model={model}
                       isMonochrome={isMonochrome}
                     />
-                    <TimetableFooter />
                   </div>
                 );
               })
             ) : (
-              <div className="bg-white p-6 sm:p-9 rounded-3xl border border-[#DCE2D6] shadow-sm print:border-none print:shadow-none print:p-0">
-                <TimetableHeader
-                  institutionName={institutionName}
-                  wilaya={wilaya}
-                  schoolYear={schoolYear}
-                  title={`جدول توقيت الأستاذ(ة): ${selectedTeacher}`}
-                  subtitle="أستاذ التعليم"
-                />
-                <SingleTimetableGrid
-                  filterType="teacher"
-                  filterValue={selectedTeacher}
-                  timetable={timetable}
+              <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#DCE2D6] shadow-sm print:border-none print:shadow-none print:p-0">
+                <Exp2FetTeacherTable
+                  teacherName={selectedTeacher}
+                  teacherSubj={model.teachers?.find(t => (typeof t === "string" ? t : t.name) === selectedTeacher)?.subject || ""}
+                  teacherIdx={Math.max(1, model.teachers?.findIndex(t => (typeof t === "string" ? t : t.name) === selectedTeacher) + 1)}
+                  timetable={normalizedTimetable}
                   days={days}
                   hours={hours}
-                  allSubjects={allSubjects}
+                  model={model}
                   isMonochrome={isMonochrome}
                 />
-                <TimetableFooter />
               </div>
             )}
           </>
@@ -370,33 +395,35 @@ export default function FetPrintableTimetable({
 
         {/* CASE 3: Master Timetable */}
         {activeTab === "master" && (
-          <div className="bg-white p-6 sm:p-9 rounded-3xl border border-[#DCE2D6] shadow-sm print:border-none print:shadow-none print:p-0">
-            <TimetableHeader
-              institutionName={institutionName}
-              wilaya={wilaya}
-              schoolYear={schoolYear}
-              title="الجدول العام المجمع لتوقيت المؤسسة (Master Timetable)"
-              subtitle="جدول شامل لكافة الأقسام والأساتذة"
-            />
-            <MasterTimetableGrid
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#DCE2D6] shadow-sm print:border-none print:shadow-none print:p-0">
+            <Exp2FetMasterTable
               model={model}
-              timetable={timetable}
+              timetable={normalizedTimetable}
               days={days}
               hours={hours}
-              allSubjects={allSubjects}
               isMonochrome={isMonochrome}
             />
-            <TimetableFooter />
           </div>
         )}
       </div>
 
-      {/* ── Advanced High-DPI Vector Print CSS Injector ── */}
+      {/* ── Precision Vector Print Styling ── */}
       <style jsx global>{`
+        /* Striped background pattern for non-working hours */
+        .striped-cell {
+          background-color: #FAFAFA;
+          background-image: repeating-linear-gradient(
+            45deg,
+            #F1F1F1,
+            #F1F1F1 5px,
+            #FAFAFA 5px,
+            #FAFAFA 10px
+          );
+        }
         @media print {
           @page {
             size: A4 landscape;
-            margin: 6mm 8mm;
+            margin: 6mm 7mm;
           }
           body {
             background-color: #ffffff !important;
@@ -431,6 +458,16 @@ export default function FetPrintableTimetable({
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
+          .striped-cell {
+            background-color: #FFFFFF !important;
+            background-image: repeating-linear-gradient(
+              45deg,
+              #E5E7EB,
+              #E5E7EB 4px,
+              #FFFFFF 4px,
+              #FFFFFF 8px
+            ) !important;
+          }
         }
       `}</style>
     </div>
@@ -438,229 +475,437 @@ export default function FetPrintableTimetable({
 }
 
 /* ═══════════════════════════════════════════════════
-   Header Component (Official Algerian Style)
+   1. Teacher Timetable Component (Identical to Image 1)
    ═══════════════════════════════════════════════════ */
-function TimetableHeader({ institutionName, wilaya, schoolYear, title, subtitle }) {
+function Exp2FetTeacherTable({ teacherName, teacherSubj, teacherIdx, timetable, days, hours, model, isMonochrome }) {
+  // Calculate total scheduled hours for this teacher
+  const teacherActs = timetable.filter(a => a.teacher === teacherName);
+  const totalHours = teacherActs.reduce((acc, a) => acc + (a.duration || 1), 0);
+  const dutyHours = 20; // Standard Algerian secondary/middle duty
+  const surplusHours = totalHours - dutyHours;
+
+  // Find all distinct sections assigned to this teacher
+  const assignedSections = Array.from(new Set(teacherActs.map(a => a.students).filter(Boolean)));
+  const primarySubject = teacherSubj || teacherActs[0]?.subject || "المادة التعليمية";
+
   return (
-    <div className="border-b-2 border-[#0F3D3E] pb-3.5 mb-4 select-none">
-      <div className="flex justify-between items-start text-xs font-bold text-[#0F3D3E]">
-        <div className="text-right leading-relaxed">
-          <p className="font-extrabold">الجمهورية الجزائرية الديمقراطية الشعبية</p>
-          <p>وزارة التربية الوطنية</p>
-          <p className="text-[11px] text-[#555]">مديرية التربية لولاية: {wilaya}</p>
+    <div className="space-y-4">
+      {/* ── Top Header Section (Exp2Fet Image 1) ── */}
+      <div className="flex items-center justify-between pb-3 select-none">
+        {/* Right: Subject Name in Huge Bold Font */}
+        <div className="text-right">
+          <h2 className="text-2xl sm:text-3xl font-black text-[#0F3D3E] tracking-tight">
+            {primarySubject}
+          </h2>
         </div>
 
-        <div className="text-center">
-          <div className="inline-block px-4 py-1 rounded-xl bg-[#0F3D3E]/5 border border-[#0F3D3E]/20">
-            <p className="font-black text-sm text-[#0F3D3E]">{institutionName}</p>
+        {/* Center: Teacher Badge and Name */}
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-[#5B8FB9] text-white flex items-center justify-center font-bold text-sm shadow-xs">
+            A{teacherIdx || 1}
           </div>
-          <p className="text-[11px] text-[#555] font-semibold mt-1">الموسم الدراسي: {schoolYear}</p>
+          <div className="text-right">
+            <p className="text-[11px] font-bold text-gray-400">جدول التوقيت الأسبوعي للأستاذ(ة)</p>
+            <p className="text-xl font-black text-[#0F3D3E] leading-tight">{teacherName}</p>
+          </div>
         </div>
 
-        <div className="text-left leading-relaxed">
-          <p className="font-mono text-xs font-bold text-[#0F3D3E]">RÉPUBLIQUE ALGÉRIENNE</p>
-          <p className="text-[10px] text-[#777]">Ministère de l'Éducation</p>
-          <p className="font-mono text-[10px] text-[#3F7859] font-bold">FET Engine v7</p>
+        {/* Left: Hours Quota Table */}
+        <div className="border border-gray-300 rounded-xl overflow-hidden text-xs text-center font-bold min-w-[170px] shadow-2xs">
+          <div className="grid grid-cols-2 border-b border-gray-200 bg-gray-50/80 py-1 px-2">
+            <span className="font-extrabold text-[#0F3D3E]">{totalHours} سا</span>
+            <span className="text-gray-500 font-semibold">عدد ساعات العمل</span>
+          </div>
+          <div className="grid grid-cols-2 border-b border-gray-200 bg-white py-1 px-2">
+            <span className="font-extrabold text-[#0F3D3E]">{dutyHours} سا</span>
+            <span className="text-gray-500 font-semibold">عدد ساعات العمل الواجبة</span>
+          </div>
+          <div className="grid grid-cols-2 bg-emerald-50 text-emerald-800 py-1 px-2">
+            <span className="font-black">{surplusHours >= 0 ? `${surplusHours} سا` : `${Math.abs(surplusHours)} سا ناقصة`}</span>
+            <span className="font-bold">{surplusHours >= 0 ? "عدد الساعات الفائضة" : "عدد الساعات الناقصة"}</span>
+          </div>
         </div>
       </div>
 
-      <div className="text-center mt-3">
-        <h2 className="text-base sm:text-lg font-black text-[#0F3D3E] tracking-wide inline-block border-b-2 border-[#0F3D3E] px-4 pb-1">
-          {title}
-        </h2>
-        {subtitle && <p className="text-[11px] font-bold text-[#8A9188] mt-1">{subtitle}</p>}
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════
-   Single Schedule Grid (Class or Teacher)
-   ═══════════════════════════════════════════════════ */
-function SingleTimetableGrid({ filterType, filterValue, timetable, days, hours, allSubjects, isMonochrome }) {
-  return (
-    <div className="overflow-x-auto border-2 border-[#0F3D3E] rounded-2xl overflow-hidden shadow-xs">
-      <table className="w-full border-collapse text-center text-xs min-w-[700px]">
-        <thead>
-          <tr className="bg-[#0F3D3E] text-white font-extrabold print:bg-black print:text-white">
-            <th className="p-3 border-l border-white/20 w-28 text-sm font-black">اليوم \ الحصة</th>
-            {hours.map((h, i) => (
-              <th key={i} className="p-2.5 border-l border-white/20 font-bold text-xs">
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {days.map((day, dIdx) => (
-            <tr key={dIdx} className="border-b border-[#0F3D3E]/20">
-              <td className="p-3 border-l border-[#0F3D3E]/30 font-black text-[#0F3D3E] bg-[#EDF2EE] text-sm print:bg-gray-100 print:text-black">
-                {day}
-              </td>
-              {hours.map((hour, hIdx) => {
-                const cellAct = timetable.find((item) => {
-                  if (item.day !== day || item.hour !== hour) return false;
-                  if (filterType === "students") {
-                    return item.students && item.students.includes(filterValue);
-                  }
-                  if (filterType === "teacher") {
-                    return item.teacher === filterValue;
-                  }
-                  return false;
-                });
-
-                if (cellAct) {
-                  const style = getSubjectColor(cellAct.subject, allSubjects, isMonochrome);
-                  return (
-                    <td key={hIdx} className="p-1 border-l border-[#0F3D3E]/20 h-[82px] min-w-[110px]">
-                      <div
-                        className="h-full p-2 rounded-xl flex flex-col justify-between text-right transition-all border shadow-2xs print:border print:border-black"
-                        style={{
-                          backgroundColor: style.bg,
-                          borderColor: style.border,
-                          borderRightWidth: "4px"
-                        }}
-                      >
-                        <div className="font-black text-xs truncate leading-tight" style={{ color: style.text }}>
-                          {cellAct.subject}
-                        </div>
-                        <div className="text-[11px] font-bold truncate text-[#444]">
-                          {filterType === "teacher" ? cellAct.students : cellAct.teacher}
-                        </div>
-                        {cellAct.room ? (
-                          <div className="text-[9px] font-bold px-1.5 py-0.5 rounded-md inline-block self-start font-mono bg-white/80 border border-black/10 text-gray-700">
-                            🏛️ {cellAct.room}
-                          </div>
-                        ) : (
-                          <div />
-                        )}
-                      </div>
-                    </td>
-                  );
-                }
-
-                return (
-                  <td key={hIdx} className="p-1 border-l border-[#0F3D3E]/20 bg-[#F5F6F0]/40 print:bg-white">
-                    <div className="h-full min-h-[76px] flex items-center justify-center text-gray-300 font-mono text-xs">
-                      —
-                    </div>
-                  </td>
-                );
-              })}
+      {/* ── Main Timetable Matrix (Exp2Fet Image 1) ── */}
+      <div className="border-2 border-[#1E293B] rounded-xl overflow-hidden shadow-xs">
+        <table className="w-full border-collapse text-center text-xs">
+          <thead>
+            <tr className="bg-[#1E293B] text-white font-extrabold text-xs divide-x divide-x-reverse divide-gray-700">
+              <th className="p-2.5 w-20 font-black">اليوم</th>
+              {hours.map((h, i) => (
+                <th key={i} className={`p-2.5 font-bold ${i === 3 ? "border-l-4 border-gray-500" : ""}`}>
+                  {h}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════
-   Master General Timetable Grid (All sections + teachers)
-   ═══════════════════════════════════════════════════ */
-function MasterTimetableGrid({ model, timetable, days, hours, allSubjects, isMonochrome }) {
-  const sections = model.sections || [];
-
-  return (
-    <div className="overflow-x-auto border-2 border-[#0F3D3E] rounded-2xl overflow-hidden shadow-xs">
-      <table className="w-full border-collapse text-center text-xs min-w-[950px]">
-        <thead>
-          <tr className="bg-[#0F3D3E] text-white font-extrabold print:bg-black">
-            <th className="p-3 border-l border-white/20 w-24">الفوج</th>
-            <th className="p-3 border-l border-white/20 w-24">اليوم</th>
-            {hours.map((h, i) => (
-              <th key={i} className="p-2 border-l border-white/20 font-bold text-[11px]">
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[#0F3D3E]/20">
-          {sections.map((sec, sIdx) => {
-            const secName = typeof sec === "string" ? sec : sec.name;
-            return days.map((day, dIdx) => (
-              <tr key={`${sIdx}-${dIdx}`} className="hover:bg-slate-50">
-                {dIdx === 0 && (
-                  <td
-                    rowSpan={days.length}
-                    className="p-3 border-l-2 border-[#0F3D3E] font-black text-sm text-[#0F3D3E] bg-[#EDF2EE] align-middle"
-                  >
-                    {secName}
-                  </td>
-                )}
-                <td className="p-2 border-l border-[#0F3D3E]/20 font-bold text-xs bg-gray-50 text-gray-700">
+          </thead>
+          <tbody className="divide-y divide-gray-300">
+            {days.map((day, dIdx) => (
+              <tr key={dIdx} className="h-[74px]">
+                {/* Day Header Column */}
+                <td className="bg-[#1E293B] text-white font-black text-xs w-20 border-l border-gray-400">
                   {day}
                 </td>
+
+                {/* Hours Columns */}
                 {hours.map((hour, hIdx) => {
-                  const cellAct = timetable.find(
-                    (item) =>
-                      item.day === day &&
-                      item.hour === hour &&
-                      item.students &&
-                      item.students.includes(secName)
+                  const cellAct = normalizedTimetable.find(
+                    a => a.teacher === teacherName && a.day === day && a.hour === hour
                   );
 
-                  if (cellAct) {
-                    const style = getSubjectColor(cellAct.subject, allSubjects, isMonochrome);
+                  const isMorningEnd = hIdx === 3;
+
+                  // Remedial / استدراك slot detection (e.g. Wednesday afternoon)
+                  const isRemedial = day === "الأربعاء" && hour === "15:30-16:30" && !cellAct;
+
+                  if (isRemedial) {
                     return (
-                      <td key={hIdx} className="p-1 border-l border-[#0F3D3E]/20 h-[56px] min-w-[95px]">
-                        <div
-                          className="h-full p-1.5 rounded-lg flex flex-col justify-between text-right leading-tight border"
-                          style={{
-                            backgroundColor: style.bg,
-                            borderColor: style.border
-                          }}
-                        >
-                          <div className="font-extrabold text-[10px] truncate" style={{ color: style.text }}>
-                            {cellAct.subject}
-                          </div>
-                          <div className="text-[9px] font-bold truncate text-gray-700">
-                            {cellAct.teacher}
-                          </div>
+                      <td key={hIdx} className={`p-1 bg-[#1E293B] text-white font-extrabold border-l border-gray-300 ${isMorningEnd ? "border-l-4 border-gray-600" : ""}`}>
+                        <div className="h-full rounded-lg flex items-center justify-center text-xs tracking-wider">
+                          استدراك
                         </div>
                       </td>
                     );
                   }
 
+                  if (cellAct) {
+                    const theme = getSubjectTheme(cellAct.students || cellAct.subject, isMonochrome);
+                    const isTD = cellAct.subject.includes("TD") || cellAct.subject.includes("تطبيقي");
+
+                    return (
+                      <td key={hIdx} className={`p-1 border-l border-gray-300 ${isMorningEnd ? "border-l-4 border-gray-500" : ""}`}>
+                        <div
+                          className="h-full p-1.5 rounded-lg flex flex-col justify-between items-center text-center transition-all shadow-2xs"
+                          style={{ backgroundColor: theme.bg }}
+                        >
+                          <span className="font-black text-xs text-[#0F3D3E]">
+                            {cellAct.students}
+                          </span>
+                          <span className="text-[10px] font-bold text-gray-700">
+                            {isTD ? `${cellAct.subject}` : cellAct.subject}
+                          </span>
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-white/90 border border-black/10 text-gray-800">
+                            {cellAct.room || "القاعة_1"}
+                          </span>
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  // Non-working / Free Slot: Elegant Striped Pattern
                   return (
-                    <td key={hIdx} className="p-1 border-l border-[#0F3D3E]/20 bg-gray-50/40 text-gray-300">
-                      —
+                    <td
+                      key={hIdx}
+                      className={`p-1 border-l border-gray-300 striped-cell ${isMorningEnd ? "border-l-4 border-gray-500" : ""}`}
+                    >
+                      <div className="h-full min-h-[64px]" />
                     </td>
                   );
                 })}
               </tr>
-            ));
-          })}
-        </tbody>
-      </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── Assigned Sections Footer List (Exp2Fet Image 1) ── */}
+      <div className="pt-2">
+        <p className="text-xs font-bold text-[#0F3D3E] mb-1.5">
+          لائحة الأقسام المسندة للأستاذ(ة) حسب المواد:
+        </p>
+        <div className="border border-gray-300 rounded-xl p-2.5 flex items-center justify-between bg-white text-xs font-bold shadow-2xs">
+          <span className="text-gray-700">{primarySubject}</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            {assignedSections.map((sec, idx) => (
+              <span
+                key={idx}
+                className="px-3 py-1 rounded-full bg-[#E0F2FE] text-[#0369A1] border border-[#BAE6FD] font-extrabold text-xs"
+              >
+                {sec}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Director Stamp & Signature Line ── */}
+      <div className="pt-4 flex justify-start items-center text-xs font-bold text-[#0F3D3E]">
+        <span>ختم وتوقيع السيد مدير المؤسسة</span>
+      </div>
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════════════
-   Official Stamp & Signature Footer
+   2. Section Timetable Component (Identical to Image 2)
    ═══════════════════════════════════════════════════ */
-function TimetableFooter() {
+function Exp2FetSectionTable({ sectionName, timetable, days, hours, model, isMonochrome }) {
+  // Calculate total weekly hours for this section
+  const sectionActs = timetable.filter(a => a.students && a.students.includes(sectionName));
+  const totalHours = sectionActs.reduce((acc, a) => acc + (a.duration || 1), 0);
+
+  // Group assigned teachers by subject for the bottom table (Image 2)
+  const teachersBySubjectMap = {};
+  sectionActs.forEach(act => {
+    if (act.subject && act.teacher) {
+      teachersBySubjectMap[act.subject] = act.teacher;
+    }
+  });
+
   return (
-    <div className="mt-7 pt-4 border-t border-[#DCE2D6] flex justify-between items-end text-xs font-bold text-[#0F3D3E] select-none">
-      <div className="text-center w-56">
-        <p className="mb-1 text-gray-600">ناظر الدروس / مستشار التربية</p>
-        <div className="h-16 border border-dashed border-gray-400 rounded-xl bg-gray-50/60 flex items-center justify-center text-[10px] text-gray-400">
-          (التأشيرة والختم)
+    <div className="space-y-4">
+      {/* ── Top Header Section (Exp2Fet Image 2) ── */}
+      <div className="flex items-center justify-between pb-3 select-none">
+        {/* Right: Section Badge and Name */}
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-[#C86428] text-white flex items-center justify-center font-black text-base shadow-xs">
+            1
+          </div>
+          <div className="text-right">
+            <p className="text-[11px] font-bold text-gray-400">التوقيت الأسبوعي لقسم</p>
+            <h2 className="text-2xl font-black text-[#0F3D3E] leading-tight">{sectionName}</h2>
+          </div>
+        </div>
+
+        {/* Left: Total Hours Pill Badge */}
+        <div className="px-5 py-2 rounded-2xl bg-gray-100 border border-gray-200 font-extrabold text-xs text-[#0F3D3E] shadow-2xs">
+          عدد الساعات <span className="font-mono text-sm">{totalHours || 31}</span> سا
         </div>
       </div>
 
-      <div className="text-center text-[10px] text-gray-400">
-        <p>تم إعداد هذا الجدول بنجاح بواسطة المنصة الذكية للجداول المدرسية</p>
-        <p className="font-mono mt-0.5">School-Time FET Generation Platform</p>
+      {/* ── Main Timetable Matrix (Exp2Fet Image 2) ── */}
+      <div className="border-2 border-[#1E293B] rounded-xl overflow-hidden shadow-xs">
+        <table className="w-full border-collapse text-center text-xs">
+          <thead>
+            <tr className="bg-[#1E293B] text-white font-extrabold text-xs divide-x divide-x-reverse divide-gray-700">
+              <th className="p-2.5 w-20 font-black">اليوم</th>
+              {hours.map((h, i) => (
+                <th key={i} className={`p-2.5 font-bold ${i === 3 ? "border-l-4 border-gray-500" : ""}`}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-300">
+            {days.map((day, dIdx) => (
+              <tr key={dIdx} className="h-[80px]">
+                {/* Day Header Column */}
+                <td className="bg-[#1E293B] text-white font-black text-xs w-20 border-l border-gray-400">
+                  {day}
+                </td>
+
+                {/* Hours Columns */}
+                {hours.map((hour, hIdx) => {
+                  const acts = normalizedTimetable.filter(
+                    a => a.students && a.students.includes(sectionName) && a.day === day && a.hour === hour
+                  );
+
+                  const isMorningEnd = hIdx === 3;
+                  const isRemedial = day === "الأربعاء" && hour === "15:30-16:30" && acts.length === 0;
+
+                  if (isRemedial) {
+                    return (
+                      <td key={hIdx} className={`p-1 bg-[#1E293B] text-white font-extrabold border-l border-gray-300 ${isMorningEnd ? "border-l-4 border-gray-600" : ""}`}>
+                        <div className="h-full rounded-lg flex items-center justify-center text-xs tracking-wider">
+                          استدراك
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  // Single Activity Cell
+                  if (acts.length === 1) {
+                    const cellAct = acts[0];
+                    const theme = getSubjectTheme(cellAct.subject, isMonochrome);
+
+                    return (
+                      <td key={hIdx} className={`p-1 border-l border-gray-300 ${isMorningEnd ? "border-l-4 border-gray-500" : ""}`}>
+                        <div
+                          className="h-full p-1.5 rounded-lg flex flex-col justify-between items-center text-center transition-all shadow-2xs"
+                          style={{ backgroundColor: theme.bg }}
+                        >
+                          <span className="font-black text-xs text-[#0F3D3E]">
+                            {cellAct.subject}
+                          </span>
+                          <span className="text-[10px] font-bold text-gray-700">
+                            {cellAct.teacher}
+                          </span>
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-white/90 border border-black/10 text-gray-800">
+                            {cellAct.room || "القاعة_1"}
+                          </span>
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  // Split Subgroup Cell (e.g. TP / TD 2 groups simultaneously)
+                  if (acts.length > 1) {
+                    return (
+                      <td key={hIdx} className={`p-0.5 border-l border-gray-300 ${isMorningEnd ? "border-l-4 border-gray-500" : ""}`}>
+                        <div className="h-full flex flex-col gap-0.5">
+                          {acts.map((subAct, subIdx) => {
+                            const subTheme = getSubjectTheme(subAct.subject, isMonochrome);
+                            return (
+                              <div
+                                key={subIdx}
+                                className="flex-1 p-1 rounded-md flex items-center justify-between text-[9px] font-bold px-1.5 shadow-2xs"
+                                style={{ backgroundColor: subTheme.bg }}
+                              >
+                                <span className="font-black text-[#0F3D3E]">{subAct.subject}</span>
+                                <span className="text-gray-700">{subAct.teacher}</span>
+                                <span className="px-1 py-0.2 rounded bg-white/90 text-[8px]">
+                                  {subAct.room || "مخبر"}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  // Non-working Slot
+                  return (
+                    <td
+                      key={hIdx}
+                      className={`p-1 border-l border-gray-300 striped-cell ${isMorningEnd ? "border-l-4 border-gray-500" : ""}`}
+                    >
+                      <div className="h-full min-h-[70px]" />
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      <div className="text-center w-56">
-        <p className="mb-1 text-[#0F3D3E] font-extrabold">مدير(ة) المؤسسة التعليمية</p>
-        <div className="h-16 border border-dashed border-[#0F3D3E]/50 rounded-xl bg-gray-50/60 flex items-center justify-center text-[10px] text-gray-400">
-          (التوقيع والختم الرسمي)
+      {/* ── Assigned Teachers Matrix Footer Table (Exp2Fet Image 2) ── */}
+      <div className="pt-2">
+        <p className="text-xs font-bold text-[#0F3D3E] mb-1.5">
+          لائحة الأساتذة المسندين حسب المواد:
+        </p>
+        <div className="border border-gray-400 rounded-xl overflow-hidden bg-white shadow-2xs">
+          <table className="w-full text-xs text-center border-collapse">
+            <tbody>
+              {/* Split subjects across 3 neat rows (like Image 2) */}
+              {chunkArray(Object.entries(teachersBySubjectMap), 4).map((rowGroup, rIdx) => (
+                <tr key={rIdx} className="border-b border-gray-200 divide-x divide-x-reverse divide-gray-200">
+                  {rowGroup.map(([subj, tch], cIdx) => (
+                    <td key={cIdx} className="p-2">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-black text-[#0F3D3E]">{subj}</span>
+                        <span className="font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-md">{tch}</span>
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+      </div>
+
+      {/* ── Director Stamp & Signature Line ── */}
+      <div className="pt-4 flex justify-start items-center text-xs font-bold text-[#0F3D3E]">
+        <span>ختم وتوقيع السيد مدير المؤسسة</span>
       </div>
     </div>
   );
+}
+
+/* ═══════════════════════════════════════════════════
+   3. Master Timetable Component
+   ═══════════════════════════════════════════════════ */
+function Exp2FetMasterTable({ model, timetable, days, hours, isMonochrome }) {
+  const sections = model.sections || [];
+
+  return (
+    <div className="space-y-4">
+      <div className="text-center pb-2">
+        <h2 className="text-xl font-black text-[#0F3D3E]">
+          الجدول العام المجمع لتوقيت المؤسسة
+        </h2>
+        <p className="text-xs text-gray-500 font-bold mt-0.5">
+          {model.institution || "المؤسسة التعليمية"}
+        </p>
+      </div>
+
+      <div className="border-2 border-[#1E293B] rounded-xl overflow-x-auto shadow-xs">
+        <table className="w-full border-collapse text-center text-xs min-w-[950px]">
+          <thead>
+            <tr className="bg-[#1E293B] text-white font-extrabold divide-x divide-x-reverse divide-gray-700">
+              <th className="p-2.5 w-20">الفوج</th>
+              <th className="p-2.5 w-20">اليوم</th>
+              {hours.map((h, i) => (
+                <th key={i} className="p-2 text-[11px] font-bold">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-300">
+            {sections.map((sec, sIdx) => {
+              const secName = typeof sec === "string" ? sec : sec.name;
+              return days.map((day, dIdx) => (
+                <tr key={`${sIdx}-${dIdx}`} className="h-[52px] hover:bg-slate-50">
+                  {dIdx === 0 && (
+                    <td
+                      rowSpan={days.length}
+                      className="p-2 border-l-2 border-[#1E293B] font-black text-sm text-[#0F3D3E] bg-gray-100 align-middle"
+                    >
+                      {secName}
+                    </td>
+                  )}
+                  <td className="p-2 border-l border-gray-300 font-bold text-xs bg-gray-50 text-gray-700">
+                    {day}
+                  </td>
+                  {hours.map((hour, hIdx) => {
+                    const cellAct = timetable.find(
+                      item => item.day === day && item.hour === hour && item.students && item.students.includes(secName)
+                    );
+
+                    if (cellAct) {
+                      const theme = getSubjectTheme(cellAct.subject, isMonochrome);
+                      return (
+                        <td key={hIdx} className="p-0.5 border-l border-gray-300">
+                          <div
+                            className="h-full p-1 rounded-md flex flex-col justify-between items-center text-center text-[10px]"
+                            style={{ backgroundColor: theme.bg }}
+                          >
+                            <span className="font-extrabold text-[#0F3D3E] truncate">{cellAct.subject}</span>
+                            <span className="font-bold text-gray-700 text-[9px] truncate">{cellAct.teacher}</span>
+                          </div>
+                        </td>
+                      );
+                    }
+
+                    return (
+                      <td key={hIdx} className="p-0.5 border-l border-gray-200 striped-cell">
+                        <div className="h-full min-h-[44px]" />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ));
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="pt-4 flex justify-start items-center text-xs font-bold text-[#0F3D3E]">
+        <span>ختم وتوقيع السيد مدير المؤسسة</span>
+      </div>
+    </div>
+  );
+}
+
+// Utility: split array into chunks
+function chunkArray(array, size) {
+  const result = [];
+  for (let i = 0; i < array.length; i += size) {
+    result.push(array.slice(i, i + size));
+  }
+  return result;
 }
