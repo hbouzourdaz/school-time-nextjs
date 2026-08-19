@@ -1,14 +1,13 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import {
-  X, Play, RefreshCw, Layers, CheckCircle, AlertTriangle, ArrowRight,
-  Printer, Download, Save, Clock, Timer, XCircle, Upload, FileCode,
-  Sparkles, Check, FileText, Server, Info, Maximize2
+  X, Play, RefreshCw, CheckCircle, AlertTriangle,
+  Download, Save, Timer, XCircle, Upload, FileCode,
+  Check, FileText, Server, Sparkles, CheckCircle2, ArrowRight
 } from "lucide-react";
 import { parseFetXmlToModel } from "@/lib/fetBuilder";
 import { updateBookingByCode } from "@/lib/bookings";
 import { STATUS_DONE } from "@/lib/utils";
-import FetPrintableTimetable from "./FetPrintableTimetable";
 
 // Helpers to build teachers.xml and subgroups.xml if missing from raw output
 function escapeXml(unsafe) {
@@ -103,6 +102,8 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
   const [placedActivities, setPlacedActivities] = useState(0);
   const [runId, setRunId] = useState("");
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [savingToBooking, setSavingToBooking] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const abortControllerRef = useRef(null);
 
   // Resume active job if exists
@@ -297,57 +298,85 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
     setStep("upload");
   };
 
+  // Clean Institution Name for strict filenames
+  const rawInst = parsedModel?.institution || booking.institution_name || "المؤسسة";
+  const instClean = rawInst.replace(/\s+/g, "_");
+
+  // The 3 exact file contents
+  const finalFet = resultFetContent || rawUploadedXml;
+  const finalTeachers = teachersXmlContent || generateTeachersXml(solvedTimetable, parsedModel);
+  const finalSubgroups = subgroupsXmlContent || generateSubgroupsXml(solvedTimetable, parsedModel);
+
+  // Exact file names requested by user
+  const fetFileName = `${instClean}_data_and_timetable.fet`;
+  const teachersFileName = `${instClean}_teachers.xml`;
+  const subgroupsFileName = `${instClean}_subgroups.xml`;
+
+  // Download a single file
+  const downloadSingleFile = (content, fileName, mimeType = "text/xml;charset=utf-8") => {
+    if (!content) return;
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Download all 3 files sequentially
+  const handleDownloadAllThree = () => {
+    downloadSingleFile(finalFet, fetFileName);
+    setTimeout(() => {
+      downloadSingleFile(finalTeachers, teachersFileName);
+    }, 200);
+    setTimeout(() => {
+      downloadSingleFile(finalSubgroups, subgroupsFileName);
+    }, 400);
+  };
+
   // Save the 3 generated files strictly into booking
-  const handleSaveToBooking = async ({
-    resultFetContent: fetText,
-    teachersXmlContent: teachersXml,
-    subgroupsXmlContent: subgroupsXml,
-    timetable: finalTable,
-    model: currentModel
-  }) => {
-    const rawInst = currentModel?.institution || booking.institution_name || "المؤسسة";
-    const instClean = rawInst.replace(/\s+/g, "_");
+  const handleSaveToBooking = async () => {
+    setSavingToBooking(true);
+    try {
+      const encodeBase64 = (str) => `data:text/xml;charset=utf-8;base64,${btoa(unescape(encodeURIComponent(str || "")))}`;
 
-    // Exact naming requested by user
-    const fetFileName = `${instClean}_data_and_timetable.fet`;
-    const teachersFileName = `${instClean}_teachers.xml`;
-    const subgroupsFileName = `${instClean}_subgroups.xml`;
+      const filesToSave = [
+        {
+          name: fetFileName,
+          url: encodeBase64(finalFet),
+          uploaded_at: new Date().toISOString(),
+          type: "fet_data_and_timetable"
+        },
+        {
+          name: teachersFileName,
+          url: encodeBase64(finalTeachers),
+          uploaded_at: new Date().toISOString(),
+          type: "fet_teachers_xml"
+        },
+        {
+          name: subgroupsFileName,
+          url: encodeBase64(finalSubgroups),
+          uploaded_at: new Date().toISOString(),
+          type: "fet_subgroups_xml"
+        }
+      ];
 
-    const finalFet = fetText || resultFetContent || rawUploadedXml;
-    const finalTeachers = teachersXml || teachersXmlContent || generateTeachersXml(finalTable || solvedTimetable, currentModel || parsedModel);
-    const finalSubgroups = subgroupsXml || subgroupsXmlContent || generateSubgroupsXml(finalTable || solvedTimetable, currentModel || parsedModel);
+      const updated = await updateBookingByCode(booking.code, {
+        final_files: filesToSave,
+        status: STATUS_DONE,
+        download_allowed: true,
+        updated_at: new Date().toISOString()
+      });
 
-    const encodeBase64 = (str) => `data:text/xml;charset=utf-8;base64,${btoa(unescape(encodeURIComponent(str || "")))}`;
-
-    const filesToSave = [
-      {
-        name: fetFileName,
-        url: encodeBase64(finalFet),
-        uploaded_at: new Date().toISOString(),
-        type: "fet_data_and_timetable"
-      },
-      {
-        name: teachersFileName,
-        url: encodeBase64(finalTeachers),
-        uploaded_at: new Date().toISOString(),
-        type: "fet_teachers_xml"
-      },
-      {
-        name: subgroupsFileName,
-        url: encodeBase64(finalSubgroups),
-        uploaded_at: new Date().toISOString(),
-        type: "fet_subgroups_xml"
-      }
-    ];
-
-    const updated = await updateBookingByCode(booking.code, {
-      final_files: filesToSave,
-      status: STATUS_DONE,
-      download_allowed: true,
-      updated_at: new Date().toISOString()
-    });
-
-    if (onSaved) onSaved(updated);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 4000);
+      if (onSaved) onSaved(updated);
+    } catch (e) {
+      console.error("Save to booking error:", e);
+    } finally {
+      setSavingToBooking(false);
+    }
   };
 
   const formatTime = (seconds) => {
@@ -358,15 +387,15 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-1 sm:p-2 md:p-3 bg-black/80 backdrop-blur-md overflow-hidden animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-hidden animate-in fade-in duration-200"
       style={{ direction: "rtl" }}
     >
       <div
-        className="bg-[#F5F6F0] rounded-3xl shadow-2xl w-full max-w-[98vw] h-[96vh] md:h-[97vh] flex flex-col overflow-hidden border border-[#DCE2D6] relative animate-in zoom-in-95 duration-200"
+        className="bg-[#F5F6F0] rounded-3xl shadow-2xl w-full max-w-4xl max-h-[95vh] flex flex-col overflow-hidden border border-[#DCE2D6] relative animate-in zoom-in-95 duration-200"
       >
-        {/* ── Modal Top Header (Full Width Workspace Bar) ── */}
+        {/* ── Modal Top Header ── */}
         <div
-          className="px-5 sm:px-7 py-3.5 border-b border-[#DCE2D6] bg-white flex items-center justify-between flex-shrink-0 shadow-xs"
+          className="px-6 py-4 border-b border-[#DCE2D6] bg-white flex items-center justify-between flex-shrink-0 shadow-xs"
         >
           <div className="flex items-center gap-3">
             <div
@@ -377,7 +406,7 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="font-extrabold text-base text-[#0F3D3E]">
-                  منصة توليد وطباعة جداول الحصص FET
+                  منصة إنتاج ملفات FET
                 </h2>
                 <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#EDF7F2] text-[#3F7859] border border-[#3F7859]/20">
                   {booking.institution_name}
@@ -412,17 +441,17 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
           </div>
         </div>
 
-        {/* ── Modal Body Content (Full Height Scrollable Workspace) ── */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-6">
+        {/* ── Modal Body Content ── */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-7 space-y-6">
           {/* STEP 1: Upload FET File */}
           {step === "upload" && (
-            <div className="max-w-4xl mx-auto space-y-6 pt-2">
+            <div className="max-w-3xl mx-auto space-y-6 pt-1">
               {/* Dropzone Area */}
               <div
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-3xl p-8 sm:p-14 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-4 ${
+                className={`border-2 border-dashed rounded-3xl p-8 sm:p-12 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-4 ${
                   uploadedFile
                     ? "border-[#3F7859] bg-[#EDF7F2]/60 hover:bg-[#EDF7F2]"
                     : "border-[#DCE2D6] hover:border-[#0F3D3E] bg-white hover:bg-[#F5F6F0]/80 shadow-sm hover:shadow-md"
@@ -437,20 +466,20 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
                 />
 
                 <div
-                  className={`w-20 h-20 rounded-3xl flex items-center justify-center shadow-sm transition-all ${
+                  className={`w-16 h-16 rounded-3xl flex items-center justify-center shadow-sm transition-all ${
                     uploadedFile
                       ? "bg-[#3F7859] text-white"
                       : "bg-[#EDF2EE] text-[#0F3D3E]"
                   }`}
                 >
-                  {uploadedFile ? <Check size={40} /> : <Upload size={38} />}
+                  {uploadedFile ? <Check size={32} /> : <Upload size={30} />}
                 </div>
 
                 <div>
-                  <h3 className="font-extrabold text-lg text-[#0F3D3E]">
+                  <h3 className="font-extrabold text-base sm:text-lg text-[#0F3D3E]">
                     {uploadedFile ? "تم اختيار ملف FET بنجاح" : "انقر لاختيار ملف FET (.fet) من جهازك"}
                   </h3>
-                  <p className="text-xs text-[#8A9188] mt-1.5">
+                  <p className="text-xs text-[#8A9188] mt-1">
                     {uploadedFile ? "يمكنك النقر مجدداً لتغيير الملف أو سحب ملف آخر" : "أو قم بسحب وإفلات ملف .fet هنا مباشرة للبدء"}
                   </p>
                 </div>
@@ -474,55 +503,53 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
 
               {/* File Info Card & Instant Action */}
               {uploadedFile && parsedModel && (
-                <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#DCE2D6] shadow-sm space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#EDF2EE] pb-5">
+                <div className="bg-white p-6 rounded-3xl border border-[#DCE2D6] shadow-sm space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#EDF2EE] pb-4">
                     <div className="flex items-center gap-3.5">
-                      <div className="w-12 h-12 rounded-2xl bg-[#0F3D3E] text-white flex items-center justify-center font-mono font-extrabold text-sm shadow-xs">
+                      <div className="w-11 h-11 rounded-2xl bg-[#0F3D3E] text-white flex items-center justify-center font-mono font-extrabold text-xs shadow-xs">
                         FET
                       </div>
                       <div>
-                        <p className="font-extrabold text-base text-[#0F3D3E]">{uploadedFile.name}</p>
+                        <p className="font-extrabold text-sm sm:text-base text-[#0F3D3E]">{uploadedFile.name}</p>
                         <p className="text-xs text-[#8A9188] mt-0.5">
                           المؤسسة: <strong className="text-[#0F3D3E]">{parsedModel.institution}</strong>
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleStartGeneration}
-                        className="bg-[#0F3D3E] hover:bg-[#175253] text-white px-8 py-3.5 rounded-2xl text-xs font-extrabold transition-all flex items-center gap-2 shadow-md hover:shadow-lg active:scale-95"
-                      >
-                        <Play size={16} className="fill-white" />
-                        بدء التوليد بمحرك FET
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleStartGeneration}
+                      className="bg-[#0F3D3E] hover:bg-[#175253] text-white px-7 py-3 rounded-2xl text-xs font-extrabold transition-all flex items-center gap-2 shadow-md hover:shadow-lg active:scale-95"
+                    >
+                      <Play size={15} className="fill-white" />
+                      بدء الإنتاج بمحرك FET
+                    </button>
                   </div>
 
                   {/* Summary Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 pt-1">
-                    <div className="bg-[#F5F6F0] p-4 rounded-2xl text-center border border-[#DCE2D6]">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                    <div className="bg-[#F5F6F0] p-3.5 rounded-2xl text-center border border-[#DCE2D6]">
                       <p className="text-[11px] font-bold text-[#8A9188]">تعداد الأساتذة</p>
-                      <p className="text-xl font-extrabold text-[#0F3D3E] mt-1">
+                      <p className="text-lg font-extrabold text-[#0F3D3E] mt-0.5">
                         {parsedModel.teachers?.length || 0}
                       </p>
                     </div>
-                    <div className="bg-[#F5F6F0] p-4 rounded-2xl text-center border border-[#DCE2D6]">
+                    <div className="bg-[#F5F6F0] p-3.5 rounded-2xl text-center border border-[#DCE2D6]">
                       <p className="text-[11px] font-bold text-[#8A9188]">الأفواج والأقسام</p>
-                      <p className="text-xl font-extrabold text-[#0F3D3E] mt-1">
+                      <p className="text-lg font-extrabold text-[#0F3D3E] mt-0.5">
                         {parsedModel.sections?.length || 0}
                       </p>
                     </div>
-                    <div className="bg-[#F5F6F0] p-4 rounded-2xl text-center border border-[#DCE2D6]">
+                    <div className="bg-[#F5F6F0] p-3.5 rounded-2xl text-center border border-[#DCE2D6]">
                       <p className="text-[11px] font-bold text-[#8A9188]">المواد الدراسية</p>
-                      <p className="text-xl font-extrabold text-[#0F3D3E] mt-1">
+                      <p className="text-lg font-extrabold text-[#0F3D3E] mt-0.5">
                         {parsedModel.subjects?.length || 0}
                       </p>
                     </div>
-                    <div className="bg-[#F5F6F0] p-4 rounded-2xl text-center border border-[#DCE2D6]">
+                    <div className="bg-[#F5F6F0] p-3.5 rounded-2xl text-center border border-[#DCE2D6]">
                       <p className="text-[11px] font-bold text-[#8A9188]">إجمالي الأنشطة</p>
-                      <p className="text-xl font-extrabold text-[#3F7859] mt-1">
+                      <p className="text-lg font-extrabold text-[#3F7859] mt-0.5">
                         {parsedModel.activities?.length || 0}
                       </p>
                     </div>
@@ -534,38 +561,30 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
 
           {/* STEP 2: Generating State */}
           {step === "generating" && (
-            <div className="max-w-2xl mx-auto my-auto py-16 px-6 bg-white rounded-3xl border border-[#DCE2D6] shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden">
-              <div className="relative mb-6">
-                <div className="w-24 h-24 rounded-full border-4 border-[#EDF2EE] flex items-center justify-center bg-white z-10 relative shadow-inner">
-                  <RefreshCw size={38} className="text-[#3F7859] animate-spin" />
+            <div className="max-w-xl mx-auto my-auto py-12 px-6 bg-white rounded-3xl border border-[#DCE2D6] shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden">
+              <div className="relative mb-5">
+                <div className="w-20 h-20 rounded-full border-4 border-[#EDF2EE] flex items-center justify-center bg-white z-10 relative shadow-inner">
+                  <RefreshCw size={32} className="text-[#3F7859] animate-spin" />
                 </div>
                 <div className="absolute inset-0 rounded-full border-4 border-[#3F7859] animate-ping opacity-25"></div>
               </div>
 
-              <h3 className="text-xl sm:text-2xl font-extrabold text-[#0F3D3E] mb-2">
-                جاري توليد جدول الحجز في خلفية السيرفر...
+              <h3 className="text-lg sm:text-xl font-extrabold text-[#0F3D3E] mb-1.5">
+                جاري توليد ملفات الحجز في خلفية السيرفر...
               </h3>
-              <p className="text-[#8A9188] text-xs max-w-md mb-6 leading-relaxed">
-                يقوم محرك FET الآن بتوزيع الأنشطة وحساب كافة القيود المحددة في الملف.
+              <p className="text-[#8A9188] text-xs max-w-sm mb-5 leading-relaxed">
+                يقوم محرك FET الآن بحساب القيود وإنتاج الملفات الثلاثة النهائية.
               </p>
 
-              {/* Server Background Safe Notice */}
-              <div className="bg-[#EDF7F2] border border-[#3F7859]/30 text-[#0F3D3E] rounded-2xl p-4 max-w-lg mb-6 flex items-start gap-3 text-right">
-                <Server size={20} className="text-[#3F7859] flex-shrink-0 mt-0.5" />
-                <p className="text-xs leading-relaxed font-medium">
-                  <strong>توليد خلفي آمن:</strong> تعمل عملية الإنتاج على السيرفر مباشرة. يمكنك إغلاق هذه النافذة أو مغادرة الموقع بأمان، وعند عودتك ستجد النتيجة جاهزة ومحفوظة.
-                </p>
-              </div>
-
               {/* Progress */}
-              <div className="w-full max-w-md mb-6">
-                <div className="flex justify-between text-xs font-bold text-[#3F7859] mb-2 px-1">
+              <div className="w-full max-w-sm mb-5">
+                <div className="flex justify-between text-xs font-bold text-[#3F7859] mb-1.5 px-1">
                   <span>الأنشطة المنجزة: {placedActivities} / {parsedModel?.activities?.length || 0}</span>
                   <span className="font-mono">
                     {parsedModel?.activities?.length ? Math.min(100, Math.round((placedActivities / parsedModel.activities.length) * 100)) : 0}%
                   </span>
                 </div>
-                <div className="h-4 w-full bg-[#EDF2EE] rounded-full overflow-hidden p-0.5 border border-[#DCE2D6]">
+                <div className="h-3.5 w-full bg-[#EDF2EE] rounded-full overflow-hidden p-0.5 border border-[#DCE2D6]">
                   <div
                     className="h-full bg-gradient-to-l from-[#3F7859] to-[#2D5841] rounded-full transition-all duration-500 ease-out"
                     style={{
@@ -576,11 +595,11 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
               </div>
 
               {/* Timer */}
-              <div className="bg-[#F5F6F0] border border-[#DCE2D6] rounded-2xl px-6 py-3 flex items-center gap-4 mb-6">
-                <Timer size={20} className="text-[#0F3D3E]" />
+              <div className="bg-[#F5F6F0] border border-[#DCE2D6] rounded-2xl px-5 py-2.5 flex items-center gap-3 mb-5">
+                <Timer size={18} className="text-[#0F3D3E]" />
                 <div className="text-right">
                   <p className="text-[10px] font-bold text-[#8A9188]">الوقت المستغرق</p>
-                  <p className="text-xl font-mono font-extrabold text-[#0F3D3E] tracking-widest">
+                  <p className="text-lg font-mono font-extrabold text-[#0F3D3E] tracking-widest">
                     {formatTime(elapsedSeconds)}
                   </p>
                 </div>
@@ -589,9 +608,9 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
               <div className="flex items-center gap-3">
                 <button
                   onClick={onClose}
-                  className="px-6 py-2.5 rounded-xl text-xs font-bold text-[#0F3D3E] bg-[#EDF2EE] hover:bg-[#DCE2D6] transition-all"
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-[#0F3D3E] bg-[#EDF2EE] hover:bg-[#DCE2D6] transition-all"
                 >
-                  إغلاق النافذة ومتابعة العمل
+                  إغلاق ومتابعة العمل بالخلفية
                 </button>
                 <button
                   onClick={() => setShowCancelModal(true)}
@@ -604,18 +623,133 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
             </div>
           )}
 
-          {/* STEP 3: Results & Full Printable Timetables */}
-          {step === "result" && solvedTimetable && parsedModel && (
-            <FetPrintableTimetable
-              timetable={solvedTimetable}
-              model={parsedModel}
-              booking={booking}
-              resultFetContent={resultFetContent}
-              teachersXmlContent={teachersXmlContent}
-              subgroupsXmlContent={subgroupsXmlContent}
-              onSaveToBooking={handleSaveToBooking}
-              onBack={() => setStep("upload")}
-            />
+          {/* STEP 3: Pure 3 Files Output Screen (No Tables / No Print) */}
+          {step === "result" && (
+            <div className="max-w-3xl mx-auto space-y-6 pt-1 animate-in fade-in duration-300">
+              {/* Success Banner */}
+              <div className="bg-white p-6 rounded-3xl border border-[#3F7859]/30 shadow-xs flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-[#EDF7F2] text-[#3F7859] flex items-center justify-center shadow-xs">
+                    <CheckCircle2 size={28} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-lg text-[#0F3D3E]">
+                      تم إنتاج الملفات الثلاثة بنجاح! 🚀
+                    </h3>
+                    <p className="text-xs text-[#8A9188] mt-0.5">
+                      المؤسسة: <strong className="text-[#0F3D3E]">{rawInst}</strong> · التوقيت جاهز للاستخدام والتصدير.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleDownloadAllThree}
+                    className="bg-[#0F3D3E] hover:bg-[#175253] text-white px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
+                  >
+                    <Download size={15} />
+                    تحميل الملفات الـ 3 دفعة واحدة
+                  </button>
+                  <button
+                    onClick={handleSaveToBooking}
+                    disabled={savingToBooking}
+                    className="bg-[#3F7859] hover:bg-[#2D5841] text-white px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 disabled:opacity-50 shadow-sm active:scale-95"
+                  >
+                    {saveSuccess ? <Check size={15} /> : <Save size={15} />}
+                    {saveSuccess ? "تم الحفظ في الحجز ✓" : savingToBooking ? "جارٍ الحفظ..." : "حفظ في ملفات الحجز"}
+                  </button>
+                </div>
+              </div>
+
+              {/* The 3 Exact File Cards */}
+              <div className="space-y-3.5">
+                {/* 1. File .fet */}
+                <div className="bg-white p-5 rounded-3xl border border-[#DCE2D6] hover:border-[#0F3D3E] shadow-2xs transition-all flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-[#0F3D3E] text-white flex items-center justify-center font-mono font-black text-xs shadow-xs">
+                      FET
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-sm text-[#0F3D3E] font-mono">
+                        {fetFileName}
+                      </h4>
+                      <p className="text-xs text-[#8A9188] mt-0.5">
+                        ملف FET الكامل متضمناً كافة البيانات الأساسية مع جدول الحصص الموزع.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => downloadSingleFile(finalFet, fetFileName)}
+                    className="bg-[#F5F6F0] hover:bg-[#0F3D3E] text-[#0F3D3E] hover:text-white border border-[#DCE2D6] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <Download size={14} />
+                    تحميل .fet
+                  </button>
+                </div>
+
+                {/* 2. Teachers XML */}
+                <div className="bg-white p-5 rounded-3xl border border-[#DCE2D6] hover:border-[#3F7859] shadow-2xs transition-all flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-[#3F7859] text-white flex items-center justify-center font-mono font-black text-xs shadow-xs">
+                      XML
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-sm text-[#0F3D3E] font-mono">
+                        {teachersFileName}
+                      </h4>
+                      <p className="text-xs text-[#8A9188] mt-0.5">
+                        ملف جداول توقيت كافة الأساتذة بصيغة XML المتوافقة مع برامج التصدير والطباعة.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => downloadSingleFile(finalTeachers, teachersFileName)}
+                    className="bg-[#F5F6F0] hover:bg-[#3F7859] text-[#3F7859] hover:text-white border border-[#DCE2D6] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <Download size={14} />
+                    تحميل XML الأساتذة
+                  </button>
+                </div>
+
+                {/* 3. Subgroups XML */}
+                <div className="bg-white p-5 rounded-3xl border border-[#DCE2D6] hover:border-[#C86428] shadow-2xs transition-all flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-[#C86428] text-white flex items-center justify-center font-mono font-black text-xs shadow-xs">
+                      XML
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-sm text-[#0F3D3E] font-mono">
+                        {subgroupsFileName}
+                      </h4>
+                      <p className="text-xs text-[#8A9188] mt-0.5">
+                        ملف جداول توقيت كافة الأقسام والأفواج التربوية بصيغة XML.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => downloadSingleFile(finalSubgroups, subgroupsFileName)}
+                    className="bg-[#F5F6F0] hover:bg-[#C86428] text-[#C86428] hover:text-white border border-[#DCE2D6] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <Download size={14} />
+                    تحميل XML الأقسام
+                  </button>
+                </div>
+              </div>
+
+              {/* Bottom Quick Action */}
+              <div className="pt-2 flex justify-between items-center text-xs text-gray-500">
+                <span>يمكنك استخدام ملفات XML مباشرة في البرامج المساعدة أو استيراد ملف FET الأصلي.</span>
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-xl bg-white border border-[#DCE2D6] hover:bg-gray-50 text-[#0F3D3E] font-bold transition-all"
+                >
+                  إغلاق النافذة
+                </button>
+              </div>
+            </div>
           )}
         </div>
 
