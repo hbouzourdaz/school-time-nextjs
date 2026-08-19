@@ -7,8 +7,7 @@ import { exec } from "child_process";
 const isWindows = os.platform() === "win32";
 const FET_CL_PATH = process.env.FET_CL_PATH || (isWindows 
   ? String.raw`C:\Users\Hakim Bouzourdaz\Downloads\fet-7.10.0\fet-7.10.0\fet-cl.exe` 
-  : "fet-cl"); // In Linux (Docker), 'fet-cl' will be in the system PATH after apt-get install
-
+  : "fet-cl"); // In Linux (Docker), 'fet-cl' will be in the system PATH
 
 function runFetEngine(inputFilePath, outputDirPath, timeLimitSeconds = 300) {
   return new Promise((resolve, reject) => {
@@ -32,7 +31,6 @@ function runFetEngine(inputFilePath, outputDirPath, timeLimitSeconds = 300) {
 }
 
 function parseActivitiesXml(xmlContent) {
-  // Simple regex-based XML parser for the activities output
   const activities = [];
   const activityRegex = /<Activity>\s*<Id>(\d+)<\/Id>\s*<Day>([^<]*)<\/Day>\s*<Hour>([^<]*)<\/Hour>\s*(?:<Room>([^<]*)<\/Room>\s*)?(?:<Room>([^<]*)<\/Room>\s*)?<\/Activity>/g;
   let match;
@@ -48,7 +46,6 @@ function parseActivitiesXml(xmlContent) {
 }
 
 function parseInputActivities(xmlContent) {
-  // Parse the original .fet file to get activity details (teacher, subject, students)
   const activities = {};
   const actRegex = /<Activity>\s*([\s\S]*?)<\/Activity>/g;
   let match;
@@ -63,7 +60,6 @@ function parseInputActivities(xmlContent) {
     const subjectMatch = block.match(/<Subject>([^<]*)<\/Subject>/);
     const durationMatch = block.match(/<Duration>(\d+)<\/Duration>/);
 
-    // Multiple students tags possible
     const studentsMatches = [...block.matchAll(/<Students>([^<]*)<\/Students>/g)];
     const students = studentsMatches.map(m => m[1]).join(" + ");
 
@@ -77,6 +73,94 @@ function parseInputActivities(xmlContent) {
   return activities;
 }
 
+/**
+ * Background execution worker for FET
+ */
+async function processFetInBackground(tmpDir, inputFilePath, outputDir, timeLimit, xmlContent, inputActivities) {
+  const resultFilePath = path.join(tmpDir, "job_result.json");
+  try {
+    const result = await runFetEngine(inputFilePath, outputDir, timeLimit);
+
+    const timetablesDir = path.join(outputDir, "timetables");
+    if (!fs.existsSync(timetablesDir)) {
+      throw new Error("لم يتم العثور على مجلد الجداول الناتجة.");
+    }
+
+    const subdirs = fs.readdirSync(timetablesDir);
+    if (subdirs.length === 0) {
+      throw new Error("لم يتم إنتاج أي ملفات.");
+    }
+
+    const resultDir = path.join(timetablesDir, subdirs[0]);
+    const files = fs.readdirSync(resultDir);
+    const activitiesFile = files.find(f => f.endsWith("_activities.xml"));
+    const dataAndTimetableFile = files.find(f => f.endsWith("_data_and_timetable.fet"));
+
+    if (!activitiesFile) {
+      throw new Error("لم يتم العثور على ملف الأنشطة المجدولة.");
+    }
+
+    const activitiesXmlContent = fs.readFileSync(path.join(resultDir, activitiesFile), "utf-8");
+    const solvedActivities = parseActivitiesXml(activitiesXmlContent);
+
+    const timetable = solvedActivities.map(solved => {
+      const original = inputActivities[solved.id] || {};
+      return {
+        id: String(solved.id),
+        day: solved.day,
+        hour: solved.hour,
+        room: solved.room,
+        teacher: original.teacher || "",
+        subject: original.subject || "",
+        students: original.students || "",
+        duration: original.duration || 1
+      };
+    });
+
+    let resultFetContent = "";
+    if (dataAndTimetableFile) {
+      resultFetContent = fs.readFileSync(path.join(resultDir, dataAndTimetableFile), "utf-8");
+    }
+
+    const htmlFiles = {};
+    files.filter(f => f.endsWith(".html")).forEach(f => {
+      htmlFiles[f] = fs.readFileSync(path.join(resultDir, f), "utf-8");
+    });
+
+    const softConflictsFile = files.find(f => f.endsWith("_soft_conflicts.txt"));
+    let softConflicts = "";
+    if (softConflictsFile) {
+      softConflicts = fs.readFileSync(path.join(resultDir, softConflictsFile), "utf-8");
+    }
+
+    const jobResult = {
+      success: true,
+      status: "completed",
+      completedAt: new Date().toISOString(),
+      timetable,
+      resultFetContent,
+      htmlFiles,
+      softConflicts,
+      engineOutput: result.output,
+      stats: {
+        totalActivities: Object.keys(inputActivities).length,
+        scheduledSlots: solvedActivities.length,
+      }
+    };
+
+    fs.writeFileSync(resultFilePath, JSON.stringify(jobResult), "utf-8");
+  } catch (err) {
+    console.error("Background FET error:", err);
+    const failResult = {
+      success: false,
+      status: "failed",
+      failedAt: new Date().toISOString(),
+      error: err.message || "فشل التوليد في الخادم."
+    };
+    fs.writeFileSync(resultFilePath, JSON.stringify(failResult), "utf-8");
+  }
+}
+
 export async function POST(req) {
   let tmpDir = "";
   let inputFilePath = "";
@@ -86,6 +170,7 @@ export async function POST(req) {
     const xmlContent = data.xmlContent;
     const timeLimit = data.timeLimit || 300;
     const runId = data.runId || Date.now().toString();
+    const isAsync = data.async !== false; // Default to true async background job
 
     tmpDir = path.join(os.tmpdir(), "fet-run-" + runId);
 
@@ -109,101 +194,45 @@ export async function POST(req) {
     const outputDir = path.join(tmpDir, "output");
     fs.mkdirSync(outputDir, { recursive: true });
 
-    // Run the real FET engine
-    const result = await runFetEngine(inputFilePath, outputDir, timeLimit);
-
-    // Find the generated activities XML file
-    const timetablesDir = path.join(outputDir, "timetables");
-    if (!fs.existsSync(timetablesDir)) {
-      return Response.json({ success: false, error: "لم يتم العثور على مجلد الجداول الناتجة." }, { status: 500 });
-    }
-
-    // Find the subdirectory (named after the input file base)
-    const subdirs = fs.readdirSync(timetablesDir);
-    if (subdirs.length === 0) {
-      return Response.json({ success: false, error: "لم يتم إنتاج أي ملفات." }, { status: 500 });
-    }
-
-    const resultDir = path.join(timetablesDir, subdirs[0]);
-
-    // Find _activities.xml
-    const files = fs.readdirSync(resultDir);
-    const activitiesFile = files.find(f => f.endsWith("_activities.xml"));
-    const dataAndTimetableFile = files.find(f => f.endsWith("_data_and_timetable.fet"));
-
-    if (!activitiesFile) {
-      return Response.json({ success: false, error: "لم يتم العثور على ملف الأنشطة المجدولة." }, { status: 500 });
-    }
-
-    // Parse the solved activities XML
-    const activitiesXmlContent = fs.readFileSync(path.join(resultDir, activitiesFile), "utf-8");
-    const solvedActivities = parseActivitiesXml(activitiesXmlContent);
-
-    // Parse the original input to get activity details
     const inputActivities = parseInputActivities(xmlContent);
 
-    // Merge solved schedule with original activity data
-    const timetable = solvedActivities.map(solved => {
-      const original = inputActivities[solved.id] || {};
-      return {
-        id: String(solved.id),
-        day: solved.day,
-        hour: solved.hour,
-        room: solved.room,
-        teacher: original.teacher || "",
-        subject: original.subject || "",
-        students: original.students || "",
-        duration: original.duration || 1
-      };
-    });
+    // Write initial job status
+    const statusFile = path.join(tmpDir, "job_status.json");
+    fs.writeFileSync(statusFile, JSON.stringify({
+      status: "running",
+      runId,
+      startedAt: new Date().toISOString(),
+      totalActivities: Object.keys(inputActivities).length
+    }), "utf-8");
 
-    // Read the data_and_timetable.fet (the complete result file) if available
-    let resultFetContent = "";
-    if (dataAndTimetableFile) {
-      resultFetContent = fs.readFileSync(path.join(resultDir, dataAndTimetableFile), "utf-8");
+    // Launch background worker (runs detached/independently of HTTP client connection)
+    const workerPromise = processFetInBackground(tmpDir, inputFilePath, outputDir, timeLimit, xmlContent, inputActivities);
+
+    if (isAsync) {
+      // Return immediately so client knows the background task is running on the server
+      return Response.json({
+        success: true,
+        status: "running",
+        runId,
+        message: "بدأت عملية التوليد في خلفية السيرفر بنجاح."
+      });
     }
 
-    // Collect HTML file list
-    const htmlFiles = {};
-    files.filter(f => f.endsWith(".html")).forEach(f => {
-      htmlFiles[f] = fs.readFileSync(path.join(resultDir, f), "utf-8");
-    });
-
-    // Read soft conflicts
-    const softConflictsFile = files.find(f => f.endsWith("_soft_conflicts.txt"));
-    let softConflicts = "";
-    if (softConflictsFile) {
-      softConflicts = fs.readFileSync(path.join(resultDir, softConflictsFile), "utf-8");
+    // If client requested synchronous wait (legacy mode)
+    await workerPromise;
+    const resultFilePath = path.join(tmpDir, "job_result.json");
+    if (fs.existsSync(resultFilePath)) {
+      const resultData = JSON.parse(fs.readFileSync(resultFilePath, "utf-8"));
+      return Response.json(resultData);
+    } else {
+      return Response.json({ success: false, error: "فشل استرجاع نتيجة التوليد." }, { status: 500 });
     }
-
-    return Response.json({
-      success: true,
-      timetable,
-      resultFetContent,
-      htmlFiles,
-      softConflicts,
-      engineOutput: result.output,
-      stats: {
-        totalActivities: Object.keys(inputActivities).length,
-        scheduledSlots: solvedActivities.length,
-      }
-    });
 
   } catch (error) {
-    console.error("FET Engine error:", error);
+    console.error("FET Engine initialization error:", error);
     return Response.json({
       success: false,
       error: error.message || "حدث خطأ غير متوقع."
     }, { status: 500 });
-
-  } finally {
-    // Cleanup temp files
-    try {
-      if (fs.existsSync(tmpDir)) {
-        fs.rmSync(tmpDir, { recursive: true, force: true });
-      }
-    } catch (e) {
-      console.error("Cleanup error:", e);
-    }
   }
 }

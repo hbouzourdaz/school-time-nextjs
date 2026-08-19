@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import {
   X, Play, RefreshCw, Layers, CheckCircle, AlertTriangle, ArrowRight,
   Printer, Download, Save, Clock, Timer, XCircle, Upload, FileCode,
-  Sparkles, Check, FileText
+  Sparkles, Check, FileText, Server, Info
 } from "lucide-react";
 import { parseFetXmlToModel } from "@/lib/fetBuilder";
 import { updateBookingByCode } from "@/lib/bookings";
@@ -33,7 +33,27 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
   const [showCancelModal, setShowCancelModal] = useState(false);
   const abortControllerRef = useRef(null);
 
-  // Time & Polling hooks
+  // Resume active job if exists
+  useEffect(() => {
+    try {
+      const savedJobRaw = localStorage.getItem("active_fet_job_" + booking.code);
+      if (savedJobRaw) {
+        const savedJob = JSON.parse(savedJobRaw);
+        if (savedJob.runId) {
+          setRunId(savedJob.runId);
+          setIsGenerating(true);
+          setStep("generating");
+          const elapsed = Math.floor((Date.now() - (savedJob.startedAt || Date.now())) / 1000);
+          setElapsedSeconds(elapsed > 0 ? elapsed : 0);
+          if (savedJob.parsedModel) setParsedModel(savedJob.parsedModel);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [booking.code]);
+
+  // Time & Background Job Polling hooks
   useEffect(() => {
     let interval = null;
     let pollInterval = null;
@@ -48,11 +68,33 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
           try {
             const res = await fetch(`/api/fet/status?runId=${runId}`);
             const data = await res.json();
-            if (data.success && data.placed > 0) {
+
+            // 1. Job completed successfully
+            if (data.status === "completed" && data.timetable) {
+              setSolvedTimetable(data.timetable);
+              setResultFetContent(data.resultFetContent || "");
+              setSolverStats(data.stats);
+              setIsGenerating(false);
+              setStep("result");
+              try { localStorage.removeItem("active_fet_job_" + booking.code); } catch {}
+              return;
+            }
+
+            // 2. Job failed
+            if (data.status === "failed" || data.success === false) {
+              setEngineError(data.error || "فشل توليد الجدول بواسطة المحرك.");
+              setIsGenerating(false);
+              setStep("upload");
+              try { localStorage.removeItem("active_fet_job_" + booking.code); } catch {}
+              return;
+            }
+
+            // 3. Still running: update real-time placed count
+            if (data.placed > 0) {
               setPlacedActivities(data.placed);
             }
           } catch (e) {
-            // ignore
+            // ignore network glitch, keep polling
           }
         }, 1000);
       }
@@ -65,7 +107,7 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
       clearInterval(interval);
       if (pollInterval) clearInterval(pollInterval);
     };
-  }, [isGenerating, runId]);
+  }, [isGenerating, runId, booking.code]);
 
   // Handle FET File Selection
   const handleFileUpload = (e) => {
@@ -110,7 +152,7 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
     reader.readAsText(file, "UTF-8");
   };
 
-  // Run Solver
+  // Run Solver in Background
   const handleStartGeneration = async () => {
     if (!rawUploadedXml) {
       setUploadError("يرجى اختيار ملف FET أولاً قبل بدء التوليد.");
@@ -130,6 +172,16 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
     setPlacedActivities(0);
     setStep("generating");
 
+    // Save job into localStorage to persist across navigation or tab closing
+    try {
+      localStorage.setItem("active_fet_job_" + booking.code, JSON.stringify({
+        runId: newRunId,
+        bookingCode: booking.code,
+        startedAt: Date.now(),
+        parsedModel
+      }));
+    } catch {}
+
     try {
       const res = await fetch("/api/fet", {
         method: "POST",
@@ -138,30 +190,25 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
         body: JSON.stringify({
           xmlContent: rawUploadedXml,
           timeLimit: 300,
-          runId: newRunId
+          runId: newRunId,
+          async: true // Tell server to run in background
         })
       });
       const result = await res.json();
 
-      if (result.success) {
-        setSolvedTimetable(result.timetable);
-        setResultFetContent(result.resultFetContent || rawUploadedXml);
-        setSolverStats(result.stats);
-        setStep("result");
-      } else {
-        setEngineError(result.error || "فشل توليد الجدول بواسطة المحرك.");
+      if (!result.success) {
+        setEngineError(result.error || "فشل بدء مهمة التوليد.");
+        setIsGenerating(false);
         setStep("upload");
+        try { localStorage.removeItem("active_fet_job_" + booking.code); } catch {}
       }
     } catch (err) {
-      if (err.name === "AbortError") {
-        setEngineError("تم إلغاء عملية التوليد بواسطة المستخدم.");
-      } else {
-        setEngineError("فشل الاتصال بمحرك التوليد: " + (err.message || ""));
+      if (err.name !== "AbortError") {
+        setEngineError("فشل الاتصال بالخادم: " + (err.message || ""));
+        setIsGenerating(false);
+        setStep("upload");
+        try { localStorage.removeItem("active_fet_job_" + booking.code); } catch {}
       }
-      setStep("upload");
-    } finally {
-      setIsGenerating(false);
-      abortControllerRef.current = null;
     }
   };
 
@@ -171,6 +218,7 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
+    try { localStorage.removeItem("active_fet_job_" + booking.code); } catch {}
     setIsGenerating(false);
     setStep("upload");
   };
@@ -254,8 +302,7 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
             )}
             <button
               onClick={onClose}
-              disabled={isGenerating}
-              className="w-9 h-9 rounded-full flex items-center justify-center transition-colors hover:bg-gray-100 text-gray-500 disabled:opacity-30"
+              className="w-9 h-9 rounded-full flex items-center justify-center transition-colors hover:bg-gray-100 text-gray-500"
             >
               <X size={20} />
             </button>
@@ -384,56 +431,73 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
 
           {/* STEP 2: Generating State */}
           {step === "generating" && (
-            <div className="py-16 px-4 bg-white rounded-3xl border border-[#DCE2D6] shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden">
-              <div className="relative mb-6">
+            <div className="py-12 px-4 bg-white rounded-3xl border border-[#DCE2D6] shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden">
+              <div className="relative mb-5">
                 <div className="w-24 h-24 rounded-full border-4 border-[#EDF2EE] flex items-center justify-center bg-white z-10 relative shadow-inner">
                   <RefreshCw size={38} className="text-[#3F7859] animate-spin" />
                 </div>
                 <div className="absolute inset-0 rounded-full border-4 border-[#3F7859] animate-ping opacity-25"></div>
               </div>
 
-              <h3 className="text-2xl font-extrabold text-[#0F3D3E] mb-2">جاري توليد جدول الحجز بمحرك FET...</h3>
-              <p className="text-[#8A9188] text-xs max-w-md mb-6 leading-relaxed">
-                يقوم المحرك الآن بتوزيع <strong className="text-[#0F3D3E]">{parsedModel?.activities?.length} نشاطاً</strong> مع مراعاة كافة القيود المحددة في الملف.
+              <h3 className="text-xl sm:text-2xl font-extrabold text-[#0F3D3E] mb-1.5">
+                جاري توليد جدول الحجز في خلفية السيرفر...
+              </h3>
+              <p className="text-[#8A9188] text-xs max-w-md mb-5 leading-relaxed">
+                يقوم محرك FET الآن بتوزيع الأنشطة وحساب كافة القيود المحددة.
               </p>
 
+              {/* Server Background Safe Notice */}
+              <div className="bg-[#EDF7F2] border border-[#3F7859]/30 text-[#0F3D3E] rounded-2xl p-3.5 max-w-lg mb-6 flex items-start gap-2.5 text-right">
+                <Server size={18} className="text-[#3F7859] flex-shrink-0 mt-0.5" />
+                <p className="text-xs leading-relaxed font-medium">
+                  <strong>توليد خلفي آمن:</strong> تعمل عملية الإنتاج على السيرفر مباشرة. يمكنك إغلاق هذه النافذة أو مغادرة الموقع بأمان، وعند عودتك ستجد النتيجة جاهزة ومحفوظة.
+                </p>
+              </div>
+
               {/* Progress */}
-              <div className="w-full max-w-md mb-6">
+              <div className="w-full max-w-md mb-5">
                 <div className="flex justify-between text-xs font-bold text-[#3F7859] mb-2 px-1">
                   <span>الأنشطة المنجزة: {placedActivities} / {parsedModel?.activities?.length || 0}</span>
                   <span className="font-mono">
-                    {Math.min(100, Math.round((placedActivities / (parsedModel?.activities?.length || 1)) * 100))}%
+                    {parsedModel?.activities?.length ? Math.min(100, Math.round((placedActivities / parsedModel.activities.length) * 100)) : 0}%
                   </span>
                 </div>
                 <div className="h-3.5 w-full bg-[#EDF2EE] rounded-full overflow-hidden p-0.5 border border-[#DCE2D6]">
                   <div
                     className="h-full bg-gradient-to-l from-[#3F7859] to-[#2D5841] rounded-full transition-all duration-500 ease-out"
                     style={{
-                      width: `${Math.min(100, Math.round((placedActivities / (parsedModel?.activities?.length || 1)) * 100))}%`
+                      width: `${parsedModel?.activities?.length ? Math.min(100, Math.round((placedActivities / parsedModel.activities.length) * 100)) : 0}%`
                     }}
                   />
                 </div>
               </div>
 
               {/* Timer */}
-              <div className="bg-[#EDF7F2] border border-[#3F7859]/20 rounded-2xl px-6 py-3.5 flex items-center gap-4 mb-6">
-                <Timer size={22} className="text-[#3F7859]" />
+              <div className="bg-[#F5F6F0] border border-[#DCE2D6] rounded-2xl px-6 py-3 flex items-center gap-4 mb-6">
+                <Timer size={20} className="text-[#0F3D3E]" />
                 <div className="text-right">
-                  <p className="text-[10px] font-bold text-[#3F7859]">الوقت المستغرق</p>
-                  <p className="text-2xl font-mono font-extrabold text-[#0F3D3E] tracking-widest">
+                  <p className="text-[10px] font-bold text-[#8A9188]">الوقت المستغرق</p>
+                  <p className="text-xl font-mono font-extrabold text-[#0F3D3E] tracking-widest">
                     {formatTime(elapsedSeconds)}
                   </p>
                 </div>
               </div>
 
-              {/* Cancel Button */}
-              <button
-                onClick={() => setShowCancelModal(true)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 hover:text-red-700 border border-red-200 transition-all shadow-xs"
-              >
-                <XCircle size={16} />
-                إلغاء عملية التوليد
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={onClose}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-[#0F3D3E] bg-[#EDF2EE] hover:bg-[#DCE2D6] transition-all"
+                >
+                  إغلاق النافذة ومتابعة العمل
+                </button>
+                <button
+                  onClick={() => setShowCancelModal(true)}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition-all"
+                >
+                  <XCircle size={15} />
+                  إلغاء التوليد
+                </button>
+              </div>
             </div>
           )}
 
@@ -459,7 +523,7 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
               </div>
               <h4 className="font-bold text-base text-gray-900 mb-2">إلغاء التوليد</h4>
               <p className="text-xs text-gray-600 mb-5 leading-relaxed">
-                هل أنت متأكد من رغبتك في إيقاف المحرك والعودة لشاشة رفع الملف؟
+                هل أنت متأكد من رغبتك في إيقاف المهمة والعودة لشاشة رفع الملف؟
               </p>
               <div className="flex items-center gap-2 justify-center">
                 <button
