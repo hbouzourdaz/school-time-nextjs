@@ -307,24 +307,24 @@ function BookingDetail({ booking: initial, onBack }) {
       </button>
 
       {/* ─── FET Generator Action Banner ─── */}
-      <div className="rounded-2xl p-4 sm:p-5 text-white mb-4 shadow-md flex flex-wrap items-center justify-between gap-3"
+      <div className="rounded-2xl p-4 sm:p-5 text-white mb-4 shadow-md flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4"
            style={{ background: "linear-gradient(135deg, #0F3D3E 0%, #1B5E5F 100%)" }}>
         <div className="min-w-0 flex-1">
           <h3 className="font-extrabold text-sm sm:text-base flex items-center gap-2">
             <Sparkles size={18} className="text-amber-300 flex-shrink-0" />
-            رفع ملف FET وتوليد جداول الحجز
+            رفع ملف FET وإنتاج ملفات الحجز الثلاثة
           </h3>
-          <p className="text-xs text-white/80 mt-1">
-            رفع ملف .fet مباشرة لتشغيل محرك FET واستخراج جداول الأساتذة والأقسام بصيغة PDF وحفظها في الحجز.
+          <p className="text-[11px] sm:text-xs text-white/80 mt-1 leading-relaxed">
+            رفع ملف .fet مباشرة لتشغيل محرك FET وإنتاج ملفات (<span className="font-mono text-amber-200">.fet</span> و <span className="font-mono text-amber-200">teachers.xml</span> و <span className="font-mono text-amber-200">subgroups.xml</span>) وحفظها في الحجز.
           </p>
         </div>
         <button
           type="button"
           onClick={() => setShowFetModal(true)}
-          className="bg-white hover:bg-white/95 text-[#0F3D3E] font-extrabold px-4 py-2.5 rounded-xl text-xs transition-all shadow-sm active:scale-95 flex items-center gap-2 whitespace-nowrap"
+          className="bg-white hover:bg-white/95 text-[#0F3D3E] font-extrabold px-4 py-2.5 rounded-xl text-xs transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap self-stretch sm:self-center flex-shrink-0"
         >
           <Upload size={14} className="text-[#0F3D3E]" />
-          رفع ملف FET وتوليد الجدول
+          رفع ملف FET وإنتاج الملفات
         </button>
       </div>
 
