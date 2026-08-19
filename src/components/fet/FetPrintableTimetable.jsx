@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   Printer, Download, Save, CheckCircle2, Users, GraduationCap,
   Layers, Eye, FileText, ArrowRight, Share2, Sparkles, ZoomIn,
@@ -25,7 +25,6 @@ const SUBJECT_COLORS = {
   "التربية الموسيقية": { bg: "#C7D2FE", border: "#4F46E5", text: "#3730A3", subBg: "#E0E7FF" }, // Indigo
 };
 
-// Fallback dynamic colors for custom subjects
 const FALLBACK_PALETTES = [
   { bg: "#BAE6FD", border: "#0284C7", text: "#0369A1", subBg: "#E0F2FE" },
   { bg: "#FECDD3", border: "#E11D48", text: "#9F1239", subBg: "#FFE4E6" },
@@ -41,80 +40,78 @@ function getSubjectTheme(subjectName, isMonochrome = false) {
   }
   if (!subjectName) return FALLBACK_PALETTES[0];
 
-  // Look for exact or partial match
   for (const [key, val] of Object.entries(SUBJECT_COLORS)) {
     if (subjectName.includes(key) || key.includes(subjectName)) return val;
   }
 
-  // Hash-based index
   let hash = 0;
   for (let i = 0; i < subjectName.length; i++) hash += subjectName.charCodeAt(i);
   return FALLBACK_PALETTES[hash % FALLBACK_PALETTES.length];
 }
 
-// Fixed standard Algerian Middle/Secondary periods
-const STANDARD_HOURS = [
-  "08:00-09:00",
-  "09:00-10:00",
-  "10:00-11:00",
-  "11:00-12:00",
-  "13:30-14:30",
-  "14:30-15:30",
-  "15:30-16:30",
-  "16:30-17:30"
-];
-
-const STANDARD_DAYS = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس"];
+function cleanStr(s) {
+  if (!s) return "";
+  return String(s).trim().replace(/[\s\-_()]/g, "").toLowerCase();
+}
 
 export default function FetPrintableTimetable({
   timetable = [],
-  model,
+  model = {},
   booking,
   resultFetContent,
   onSaveToBooking,
   onBack
 }) {
   const [activeTab, setActiveTab] = useState("sections"); // "sections" | "teachers" | "master"
-  const [selectedSection, setSelectedSection] = useState(
-    model.sections?.[0]?.name || model.sections?.[0] || ""
-  );
-  const [selectedTeacher, setSelectedTeacher] = useState(
-    model.teachers?.[0]?.name || model.teachers?.[0] || ""
-  );
+
+  // Collect sections and teachers safely from model AND timetable
+  const sectionsList = useMemo(() => {
+    const fromModel = (model.sections || []).map(s => typeof s === "string" ? s : s.name).filter(Boolean);
+    const fromTable = Array.from(new Set(timetable.map(a => a.students).filter(Boolean)));
+    const merged = Array.from(new Set([...fromModel, ...fromTable]));
+    return merged.length > 0 ? merged : ["الفوج 1"];
+  }, [model.sections, timetable]);
+
+  const teachersList = useMemo(() => {
+    const fromModel = (model.teachers || []).map(t => typeof t === "string" ? t : t.name).filter(Boolean);
+    const fromTable = Array.from(new Set(timetable.map(a => a.teacher).filter(Boolean)));
+    const merged = Array.from(new Set([...fromModel, ...fromTable]));
+    return merged.length > 0 ? merged : ["أستاذ 1"];
+  }, [model.teachers, timetable]);
+
+  const [selectedSection, setSelectedSection] = useState(sectionsList[0] || "");
+  const [selectedTeacher, setSelectedTeacher] = useState(teachersList[0] || "");
   const [printAllMode, setPrintAllMode] = useState(false);
   const [isMonochrome, setIsMonochrome] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  const days = STANDARD_DAYS;
-  const hours = STANDARD_HOURS;
+  // Collect days and hours safely from model OR timetable
+  const days = useMemo(() => {
+    if (model.days && model.days.length > 0) return model.days;
+    const fromTable = Array.from(new Set(timetable.map(a => a.day).filter(Boolean)));
+    if (fromTable.length > 0) return fromTable;
+    return ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس"];
+  }, [model.days, timetable]);
+
+  const hours = useMemo(() => {
+    if (model.hours && model.hours.length > 0) return model.hours;
+    const fromTable = Array.from(new Set(timetable.map(a => a.hour).filter(Boolean)));
+    if (fromTable.length > 0) return fromTable;
+    return [
+      "08:00-09:00",
+      "09:00-10:00",
+      "10:00-11:00",
+      "11:00-12:00",
+      "13:30-14:30",
+      "14:30-15:30",
+      "15:30-16:30",
+      "16:30-17:30"
+    ];
+  }, [model.hours, timetable]);
+
   const institutionName = model.institution || booking?.institution_name || "المؤسسة التعليمية";
-
-  // Normalize timetable data to standard hours format
-  const normalizedTimetable = useMemo(() => {
-    return (timetable || []).map((item) => {
-      let normalizedHour = item.hour;
-      // Map "ح1 (08:00-09:00)" or "ح1" to "08:00-09:00"
-      if (item.hour.includes("08:00") || item.hour.startsWith("ح1")) normalizedHour = "08:00-09:00";
-      else if (item.hour.includes("09:00") || item.hour.startsWith("ح2")) normalizedHour = "09:00-10:00";
-      else if (item.hour.includes("10:00") || item.hour.startsWith("ح3")) normalizedHour = "10:00-11:00";
-      else if (item.hour.includes("11:00") || item.hour.startsWith("ح4")) normalizedHour = "11:00-12:00";
-      else if (item.hour.includes("13:00") || item.hour.includes("13:30") || item.hour.startsWith("ح5")) normalizedHour = "13:30-14:30";
-      else if (item.hour.includes("14:00") || item.hour.includes("14:30") || item.hour.startsWith("ح6")) normalizedHour = "14:30-15:30";
-      else if (item.hour.includes("15:00") || item.hour.includes("15:30") || item.hour.startsWith("ح7")) normalizedHour = "15:30-16:30";
-      else if (item.hour.includes("16:00") || item.hour.includes("16:30") || item.hour.startsWith("ح8")) normalizedHour = "16:30-17:30";
-
-      let normalizedDay = item.day;
-      if (item.day === "الاثنين") normalizedDay = "الإثنين";
-
-      return {
-        ...item,
-        hour: normalizedHour,
-        day: normalizedDay
-      };
-    });
-  }, [timetable]);
 
   // Execute standard print
   const handlePrint = (printAll = false) => {
@@ -143,7 +140,7 @@ export default function FetPrintableTimetable({
     try {
       await onSaveToBooking({
         resultFetContent,
-        timetable: normalizedTimetable,
+        timetable,
         model
       });
       setSavedSuccess(true);
@@ -154,6 +151,9 @@ export default function FetPrintableTimetable({
       setSaving(false);
     }
   };
+
+  const activeSectionName = selectedSection || sectionsList[0] || "";
+  const activeTeacherName = selectedTeacher || teachersList[0] || "";
 
   return (
     <div className="space-y-5" style={{ direction: "rtl" }}>
@@ -171,7 +171,7 @@ export default function FetPrintableTimetable({
               }`}
             >
               <GraduationCap size={15} />
-              جداول الأقسام ({model.sections?.length || 0})
+              جداول الأقسام ({sectionsList.length})
             </button>
             <button
               onClick={() => { setActiveTab("teachers"); setPrintAllMode(false); }}
@@ -182,7 +182,7 @@ export default function FetPrintableTimetable({
               }`}
             >
               <Users size={15} />
-              جداول الأساتذة ({model.teachers?.length || 0})
+              جداول الأساتذة ({teachersList.length})
             </button>
             <button
               onClick={() => { setActiveTab("master"); setPrintAllMode(false); }}
@@ -200,28 +200,26 @@ export default function FetPrintableTimetable({
           {/* Section Selector */}
           {activeTab === "sections" && !printAllMode && (
             <select
-              value={selectedSection}
+              value={activeSectionName}
               onChange={(e) => setSelectedSection(e.target.value)}
               className="px-3.5 py-2 text-xs rounded-xl border border-[#DCE2D6] bg-white font-extrabold text-[#0F3D3E] focus:outline-none focus:ring-2 focus:ring-[#0F3D3E] shadow-2xs"
             >
-              {model.sections?.map((sec, i) => {
-                const name = typeof sec === "string" ? sec : sec.name;
-                return <option key={i} value={name}>فوج: {name}</option>;
-              })}
+              {sectionsList.map((secName, i) => (
+                <option key={i} value={secName}>فوج: {secName}</option>
+              ))}
             </select>
           )}
 
           {/* Teacher Selector */}
           {activeTab === "teachers" && !printAllMode && (
             <select
-              value={selectedTeacher}
+              value={activeTeacherName}
               onChange={(e) => setSelectedTeacher(e.target.value)}
               className="px-3.5 py-2 text-xs rounded-xl border border-[#DCE2D6] bg-white font-extrabold text-[#0F3D3E] focus:outline-none focus:ring-2 focus:ring-[#0F3D3E] shadow-2xs"
             >
-              {model.teachers?.map((t, i) => {
-                const name = typeof t === "string" ? t : t.name;
-                return <option key={i} value={name}>الأستاذ(ة): {name}</option>;
-              })}
+              {teachersList.map((tName, i) => (
+                <option key={i} value={tName}>الأستاذ(ة): {tName}</option>
+              ))}
             </select>
           )}
         </div>
@@ -318,29 +316,26 @@ export default function FetPrintableTimetable({
         {activeTab === "sections" && (
           <>
             {printAllMode ? (
-              model.sections?.map((sec, sIdx) => {
-                const secName = typeof sec === "string" ? sec : sec.name;
-                return (
-                  <div
-                    key={sIdx}
-                    className="printable-page bg-white p-6 sm:p-8 rounded-3xl border border-[#DCE2D6] shadow-sm mb-8 print:border-none print:shadow-none print:p-0 print:m-0 print:page-break-after-always"
-                  >
-                    <Exp2FetSectionTable
-                      sectionName={secName}
-                      timetable={normalizedTimetable}
-                      days={days}
-                      hours={hours}
-                      model={model}
-                      isMonochrome={isMonochrome}
-                    />
-                  </div>
-                );
-              })
+              sectionsList.map((secName, sIdx) => (
+                <div
+                  key={sIdx}
+                  className="printable-page bg-white p-6 sm:p-8 rounded-3xl border border-[#DCE2D6] shadow-sm mb-8 print:border-none print:shadow-none print:p-0 print:m-0 print:page-break-after-always"
+                >
+                  <Exp2FetSectionTable
+                    sectionName={secName}
+                    timetable={timetable}
+                    days={days}
+                    hours={hours}
+                    model={model}
+                    isMonochrome={isMonochrome}
+                  />
+                </div>
+              ))
             ) : (
               <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#DCE2D6] shadow-sm print:border-none print:shadow-none print:p-0">
                 <Exp2FetSectionTable
-                  sectionName={selectedSection}
-                  timetable={normalizedTimetable}
+                  sectionName={activeSectionName}
+                  timetable={timetable}
                   days={days}
                   hours={hours}
                   model={model}
@@ -355,34 +350,30 @@ export default function FetPrintableTimetable({
         {activeTab === "teachers" && (
           <>
             {printAllMode ? (
-              model.teachers?.map((tch, tIdx) => {
-                const tchName = typeof tch === "string" ? tch : tch.name;
-                const tchSubj = typeof tch === "object" ? tch.subject : "";
-                return (
-                  <div
-                    key={tIdx}
-                    className="printable-page bg-white p-6 sm:p-8 rounded-3xl border border-[#DCE2D6] shadow-sm mb-8 print:border-none print:shadow-none print:p-0 print:m-0 print:page-break-after-always"
-                  >
-                    <Exp2FetTeacherTable
-                      teacherName={tchName}
-                      teacherSubj={tchSubj}
-                      teacherIdx={tIdx + 1}
-                      timetable={normalizedTimetable}
-                      days={days}
-                      hours={hours}
-                      model={model}
-                      isMonochrome={isMonochrome}
-                    />
-                  </div>
-                );
-              })
+              teachersList.map((tchName, tIdx) => (
+                <div
+                  key={tIdx}
+                  className="printable-page bg-white p-6 sm:p-8 rounded-3xl border border-[#DCE2D6] shadow-sm mb-8 print:border-none print:shadow-none print:p-0 print:m-0 print:page-break-after-always"
+                >
+                  <Exp2FetTeacherTable
+                    teacherName={tchName}
+                    teacherSubj={model.teachers?.find(t => (typeof t === "string" ? t : t.name) === tchName)?.subject || ""}
+                    teacherIdx={tIdx + 1}
+                    timetable={timetable}
+                    days={days}
+                    hours={hours}
+                    model={model}
+                    isMonochrome={isMonochrome}
+                  />
+                </div>
+              ))
             ) : (
               <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#DCE2D6] shadow-sm print:border-none print:shadow-none print:p-0">
                 <Exp2FetTeacherTable
-                  teacherName={selectedTeacher}
-                  teacherSubj={model.teachers?.find(t => (typeof t === "string" ? t : t.name) === selectedTeacher)?.subject || ""}
-                  teacherIdx={Math.max(1, model.teachers?.findIndex(t => (typeof t === "string" ? t : t.name) === selectedTeacher) + 1)}
-                  timetable={normalizedTimetable}
+                  teacherName={activeTeacherName}
+                  teacherSubj={model.teachers?.find(t => (typeof t === "string" ? t : t.name) === activeTeacherName)?.subject || ""}
+                  teacherIdx={Math.max(1, teachersList.indexOf(activeTeacherName) + 1)}
+                  timetable={timetable}
                   days={days}
                   hours={hours}
                   model={model}
@@ -398,7 +389,8 @@ export default function FetPrintableTimetable({
           <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#DCE2D6] shadow-sm print:border-none print:shadow-none print:p-0">
             <Exp2FetMasterTable
               model={model}
-              timetable={normalizedTimetable}
+              sectionsList={sectionsList}
+              timetable={timetable}
               days={days}
               hours={hours}
               isMonochrome={isMonochrome}
@@ -409,7 +401,6 @@ export default function FetPrintableTimetable({
 
       {/* ── Precision Vector Print Styling ── */}
       <style jsx global>{`
-        /* Striped background pattern for non-working hours */
         .striped-cell {
           background-color: #FAFAFA;
           background-image: repeating-linear-gradient(
@@ -475,16 +466,59 @@ export default function FetPrintableTimetable({
 }
 
 /* ═══════════════════════════════════════════════════
-   1. Teacher Timetable Component (Identical to Image 1)
+   Helper: Safe Activity Finder (Matches by string or normalized)
+   ═══════════════════════════════════════════════════ */
+function getMatchingActivities(timetable, filterType, filterValue, day, hour, dayIndex, hourIndex, allDays, allHours) {
+  return (timetable || []).filter((item) => {
+    // 1. Day match
+    const dayMatch = (
+      item.day === day ||
+      cleanStr(item.day) === cleanStr(day) ||
+      (allDays && allDays.indexOf(item.day) === dayIndex)
+    );
+    if (!dayMatch) return false;
+
+    // 2. Hour match
+    const hourMatch = (
+      item.hour === hour ||
+      cleanStr(item.hour) === cleanStr(hour) ||
+      (allHours && allHours.indexOf(item.hour) === hourIndex) ||
+      (item.hour && hour && (item.hour.includes(hour) || hour.includes(item.hour)))
+    );
+    if (!hourMatch) return false;
+
+    // 3. Filter match
+    if (filterType === "students") {
+      return (
+        item.students === filterValue ||
+        cleanStr(item.students) === cleanStr(filterValue) ||
+        (item.students && item.students.includes(filterValue)) ||
+        (filterValue && filterValue.includes(item.students))
+      );
+    }
+    if (filterType === "teacher") {
+      return (
+        item.teacher === filterValue ||
+        cleanStr(item.teacher) === cleanStr(filterValue) ||
+        (item.teacher && item.teacher.includes(filterValue))
+      );
+    }
+    return true;
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   1. Teacher Timetable Component (Exp2Fet Layout)
    ═══════════════════════════════════════════════════ */
 function Exp2FetTeacherTable({ teacherName, teacherSubj, teacherIdx, timetable, days, hours, model, isMonochrome }) {
-  // Calculate total scheduled hours for this teacher
-  const teacherActs = timetable.filter(a => a.teacher === teacherName);
+  // Find all activities for this teacher
+  const teacherActs = (timetable || []).filter(
+    a => a.teacher === teacherName || cleanStr(a.teacher) === cleanStr(teacherName)
+  );
   const totalHours = teacherActs.reduce((acc, a) => acc + (a.duration || 1), 0);
-  const dutyHours = 20; // Standard Algerian secondary/middle duty
+  const dutyHours = 20;
   const surplusHours = totalHours - dutyHours;
 
-  // Find all distinct sections assigned to this teacher
   const assignedSections = Array.from(new Set(teacherActs.map(a => a.students).filter(Boolean)));
   const primarySubject = teacherSubj || teacherActs[0]?.subject || "المادة التعليمية";
 
@@ -550,14 +584,11 @@ function Exp2FetTeacherTable({ teacherName, teacherSubj, teacherIdx, timetable, 
 
                 {/* Hours Columns */}
                 {hours.map((hour, hIdx) => {
-                  const cellAct = timetable.find(
-                    a => a.teacher === teacherName && a.day === day && a.hour === hour
-                  );
-
+                  const acts = getMatchingActivities(timetable, "teacher", teacherName, day, hour, dIdx, hIdx, days, hours);
                   const isMorningEnd = hIdx === 3;
 
-                  // Remedial / استدراك slot detection (e.g. Wednesday afternoon)
-                  const isRemedial = day === "الأربعاء" && hour === "15:30-16:30" && !cellAct;
+                  // Remedial / استدراك slot detection
+                  const isRemedial = day.includes("الأربعاء") && hIdx === 5 && acts.length === 0;
 
                   if (isRemedial) {
                     return (
@@ -569,9 +600,10 @@ function Exp2FetTeacherTable({ teacherName, teacherSubj, teacherIdx, timetable, 
                     );
                   }
 
-                  if (cellAct) {
+                  if (acts.length > 0) {
+                    const cellAct = acts[0];
                     const theme = getSubjectTheme(cellAct.students || cellAct.subject, isMonochrome);
-                    const isTD = cellAct.subject.includes("TD") || cellAct.subject.includes("تطبيقي");
+                    const isTD = cellAct.subject && (cellAct.subject.includes("TD") || cellAct.subject.includes("تطبيقي"));
 
                     return (
                       <td key={hIdx} className={`p-1 border-l border-gray-300 ${isMorningEnd ? "border-l-4 border-gray-500" : ""}`}>
@@ -593,7 +625,7 @@ function Exp2FetTeacherTable({ teacherName, teacherSubj, teacherIdx, timetable, 
                     );
                   }
 
-                  // Non-working / Free Slot: Elegant Striped Pattern
+                  // Non-working / Free Slot
                   return (
                     <td
                       key={hIdx}
@@ -609,7 +641,7 @@ function Exp2FetTeacherTable({ teacherName, teacherSubj, teacherIdx, timetable, 
         </table>
       </div>
 
-      {/* ── Assigned Sections Footer List (Exp2Fet Image 1) ── */}
+      {/* ── Assigned Sections Footer List ── */}
       <div className="pt-2">
         <p className="text-xs font-bold text-[#0F3D3E] mb-1.5">
           لائحة الأقسام المسندة للأستاذ(ة) حسب المواد:
@@ -638,14 +670,14 @@ function Exp2FetTeacherTable({ teacherName, teacherSubj, teacherIdx, timetable, 
 }
 
 /* ═══════════════════════════════════════════════════
-   2. Section Timetable Component (Identical to Image 2)
+   2. Section Timetable Component (Exp2Fet Layout)
    ═══════════════════════════════════════════════════ */
 function Exp2FetSectionTable({ sectionName, timetable, days, hours, model, isMonochrome }) {
-  // Calculate total weekly hours for this section
-  const sectionActs = timetable.filter(a => a.students && a.students.includes(sectionName));
+  const sectionActs = (timetable || []).filter(
+    a => a.students && (a.students === sectionName || a.students.includes(sectionName) || cleanStr(a.students) === cleanStr(sectionName))
+  );
   const totalHours = sectionActs.reduce((acc, a) => acc + (a.duration || 1), 0);
 
-  // Group assigned teachers by subject for the bottom table (Image 2)
   const teachersBySubjectMap = {};
   sectionActs.forEach(act => {
     if (act.subject && act.teacher) {
@@ -697,12 +729,9 @@ function Exp2FetSectionTable({ sectionName, timetable, days, hours, model, isMon
 
                 {/* Hours Columns */}
                 {hours.map((hour, hIdx) => {
-                  const acts = timetable.filter(
-                    a => a.students && a.students.includes(sectionName) && a.day === day && a.hour === hour
-                  );
-
+                  const acts = getMatchingActivities(timetable, "students", sectionName, day, hour, dIdx, hIdx, days, hours);
                   const isMorningEnd = hIdx === 3;
-                  const isRemedial = day === "الأربعاء" && hour === "15:30-16:30" && acts.length === 0;
+                  const isRemedial = day.includes("الأربعاء") && hIdx === 5 && acts.length === 0;
 
                   if (isRemedial) {
                     return (
@@ -739,7 +768,7 @@ function Exp2FetSectionTable({ sectionName, timetable, days, hours, model, isMon
                     );
                   }
 
-                  // Split Subgroup Cell (e.g. TP / TD 2 groups simultaneously)
+                  // Split Subgroup Cell (TP / TD)
                   if (acts.length > 1) {
                     return (
                       <td key={hIdx} className={`p-0.5 border-l border-gray-300 ${isMorningEnd ? "border-l-4 border-gray-500" : ""}`}>
@@ -789,7 +818,6 @@ function Exp2FetSectionTable({ sectionName, timetable, days, hours, model, isMon
         <div className="border border-gray-400 rounded-xl overflow-hidden bg-white shadow-2xs">
           <table className="w-full text-xs text-center border-collapse">
             <tbody>
-              {/* Split subjects across 3 neat rows (like Image 2) */}
               {chunkArray(Object.entries(teachersBySubjectMap), 4).map((rowGroup, rIdx) => (
                 <tr key={rIdx} className="border-b border-gray-200 divide-x divide-x-reverse divide-gray-200">
                   {rowGroup.map(([subj, tch], cIdx) => (
@@ -818,9 +846,7 @@ function Exp2FetSectionTable({ sectionName, timetable, days, hours, model, isMon
 /* ═══════════════════════════════════════════════════
    3. Master Timetable Component
    ═══════════════════════════════════════════════════ */
-function Exp2FetMasterTable({ model, timetable, days, hours, isMonochrome }) {
-  const sections = model.sections || [];
-
+function Exp2FetMasterTable({ model, sectionsList, timetable, days, hours, isMonochrome }) {
   return (
     <div className="space-y-4">
       <div className="text-center pb-2">
@@ -846,8 +872,7 @@ function Exp2FetMasterTable({ model, timetable, days, hours, isMonochrome }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-300">
-            {sections.map((sec, sIdx) => {
-              const secName = typeof sec === "string" ? sec : sec.name;
+            {sectionsList.map((secName, sIdx) => {
               return days.map((day, dIdx) => (
                 <tr key={`${sIdx}-${dIdx}`} className="h-[52px] hover:bg-slate-50">
                   {dIdx === 0 && (
@@ -862,11 +887,10 @@ function Exp2FetMasterTable({ model, timetable, days, hours, isMonochrome }) {
                     {day}
                   </td>
                   {hours.map((hour, hIdx) => {
-                    const cellAct = timetable.find(
-                      item => item.day === day && item.hour === hour && item.students && item.students.includes(secName)
-                    );
+                    const acts = getMatchingActivities(timetable, "students", secName, day, hour, dIdx, hIdx, days, hours);
 
-                    if (cellAct) {
+                    if (acts.length > 0) {
+                      const cellAct = acts[0];
                       const theme = getSubjectTheme(cellAct.subject, isMonochrome);
                       return (
                         <td key={hIdx} className="p-0.5 border-l border-gray-300">
@@ -901,7 +925,6 @@ function Exp2FetMasterTable({ model, timetable, days, hours, isMonochrome }) {
   );
 }
 
-// Utility: split array into chunks
 function chunkArray(array, size) {
   const result = [];
   for (let i = 0; i < array.length; i += size) {
