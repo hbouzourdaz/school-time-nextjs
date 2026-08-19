@@ -120,6 +120,23 @@ async function processFetInBackground(tmpDir, inputFilePath, outputDir, timeLimi
     let resultFetContent = "";
     if (dataAndTimetableFile) {
       resultFetContent = fs.readFileSync(path.join(resultDir, dataAndTimetableFile), "utf-8");
+    } else {
+      const anyFet = files.find(f => f.endsWith(".fet"));
+      if (anyFet) resultFetContent = fs.readFileSync(path.join(resultDir, anyFet), "utf-8");
+    }
+
+    // Locate teachers XML file
+    const teachersXmlFile = files.find(f => f.endsWith("_teachers.xml") || f.endsWith("_teachers_days_horizontal.xml") || (f.endsWith(".xml") && f.includes("teachers")));
+    let teachersXmlContent = "";
+    if (teachersXmlFile) {
+      teachersXmlContent = fs.readFileSync(path.join(resultDir, teachersXmlFile), "utf-8");
+    }
+
+    // Locate subgroups XML file
+    const subgroupsXmlFile = files.find(f => f.endsWith("_subgroups.xml") || f.endsWith("_subgroups_days_horizontal.xml") || f.endsWith("_students.xml") || (f.endsWith(".xml") && (f.includes("subgroups") || f.includes("students"))));
+    let subgroupsXmlContent = "";
+    if (subgroupsXmlFile) {
+      subgroupsXmlContent = fs.readFileSync(path.join(resultDir, subgroupsXmlFile), "utf-8");
     }
 
     const htmlFiles = {};
@@ -139,6 +156,8 @@ async function processFetInBackground(tmpDir, inputFilePath, outputDir, timeLimi
       completedAt: new Date().toISOString(),
       timetable,
       resultFetContent,
+      teachersXmlContent,
+      subgroupsXmlContent,
       htmlFiles,
       softConflicts,
       engineOutput: result.output,

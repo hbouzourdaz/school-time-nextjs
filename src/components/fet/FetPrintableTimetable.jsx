@@ -59,6 +59,8 @@ export default function FetPrintableTimetable({
   model = {},
   booking,
   resultFetContent,
+  teachersXmlContent,
+  subgroupsXmlContent,
   onSaveToBooking,
   onBack
 }) {
@@ -129,7 +131,7 @@ export default function FetPrintableTimetable({
     ];
   }, [model.hours, timetable]);
 
-  const institutionName = model.institution || booking?.institution_name || "المؤسسة التعليمية";
+  const institutionName = (model.institution || booking?.institution_name || "المؤسسة").replace(/\s+/g, "_");
 
   // Execute standard print
   const handlePrint = (printAll = false) => {
@@ -139,25 +141,43 @@ export default function FetPrintableTimetable({
     }, 150);
   };
 
-  // Download raw .fet file
-  const handleDownloadFet = () => {
-    if (!resultFetContent) return;
-    const blob = new Blob([resultFetContent], { type: "text/xml;charset=utf-8" });
+  // Download helpers for the 3 specific files
+  const downloadFile = (content, fileName, mimeType = "text/xml;charset=utf-8") => {
+    if (!content) return;
+    const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${institutionName.replace(/\s+/g, "_")}_جدول_الحصص.fet`;
+    a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  // Save to booking final_files
+  // 1. Download _data_and_timetable.fet
+  const handleDownloadFet = () => {
+    if (!resultFetContent) return;
+    downloadFile(resultFetContent, `${institutionName}_data_and_timetable.fet`);
+  };
+
+  // 2. Download _teachers.xml
+  const handleDownloadTeachersXml = () => {
+    downloadFile(teachersXmlContent, `${institutionName}_teachers.xml`);
+  };
+
+  // 3. Download _subgroups.xml
+  const handleDownloadSubgroupsXml = () => {
+    downloadFile(subgroupsXmlContent, `${institutionName}_subgroups.xml`);
+  };
+
+  // Save the 3 files strictly to booking final_files
   const handleSave = async () => {
     if (!onSaveToBooking) return;
     setSaving(true);
     try {
       await onSaveToBooking({
         resultFetContent,
+        teachersXmlContent,
+        subgroupsXmlContent,
         timetable,
         model
       });
@@ -298,27 +318,52 @@ export default function FetPrintableTimetable({
             </button>
           )}
 
-          {/* Download .fet */}
+          {/* Download 1: .fet */}
           {resultFetContent && (
             <button
               onClick={handleDownloadFet}
-              className="border border-[#DCE2D6] bg-white hover:border-[#0F3D3E] text-[#0F3D3E] px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1"
-              title="تحميل ملف FET الأصلي مع الجدول الزمني"
+              className="border border-[#DCE2D6] bg-white hover:border-[#0F3D3E] text-[#0F3D3E] px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shadow-2xs"
+              title="تحميل ملف FET الكامل مع الجدول الزمني (_data_and_timetable.fet)"
             >
-              <Download size={14} />
+              <Download size={13} />
               .fet
             </button>
           )}
 
-          {/* Save to Booking */}
+          {/* Download 2: teachers.xml */}
+          {teachersXmlContent && (
+            <button
+              onClick={handleDownloadTeachersXml}
+              className="border border-[#DCE2D6] bg-white hover:border-[#0F3D3E] text-[#0F3D3E] px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shadow-2xs"
+              title="تحميل ملف جدول الأساتذة XML (_teachers.xml)"
+            >
+              <Download size={13} />
+              الأساتذة .xml
+            </button>
+          )}
+
+          {/* Download 3: subgroups.xml */}
+          {subgroupsXmlContent && (
+            <button
+              onClick={handleDownloadSubgroupsXml}
+              className="border border-[#DCE2D6] bg-white hover:border-[#0F3D3E] text-[#0F3D3E] px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shadow-2xs"
+              title="تحميل ملف جدول الأقسام والفصول XML (_subgroups.xml)"
+            >
+              <Download size={13} />
+              الأقسام .xml
+            </button>
+          )}
+
+          {/* Save the 3 files to Booking */}
           {onSaveToBooking && (
             <button
               onClick={handleSave}
               disabled={saving}
               className="bg-[#3F7859] hover:bg-[#2D5841] text-white px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 disabled:opacity-50 shadow-sm active:scale-95"
+              title="حفظ الملفات الثلاثة (.fet, teachers.xml, subgroups.xml) في ملفات الحجز"
             >
               {savedSuccess ? <CheckCircle2 size={15} /> : <Save size={15} />}
-              {savedSuccess ? "تم الحفظ للعميل ✓" : saving ? "جارٍ الحفظ..." : "حفظ في ملفات الحجز"}
+              {savedSuccess ? "تم حفظ الملفات الثلاثة ✓" : saving ? "جارٍ الحفظ..." : "حفظ الملفات الـ 3 في الحجز"}
             </button>
           )}
         </div>

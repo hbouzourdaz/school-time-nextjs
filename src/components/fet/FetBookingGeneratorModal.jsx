@@ -10,6 +10,76 @@ import { updateBookingByCode } from "@/lib/bookings";
 import { STATUS_DONE } from "@/lib/utils";
 import FetPrintableTimetable from "./FetPrintableTimetable";
 
+// Helpers to build teachers.xml and subgroups.xml if missing from raw output
+function escapeXml(unsafe) {
+  if (!unsafe) return "";
+  return String(unsafe).replace(/[<>&'"]/g, function (c) {
+    switch (c) {
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '&': return '&amp;';
+      case '\'': return '&apos;';
+      case '"': return '&quot;';
+    }
+  });
+}
+
+function generateTeachersXml(timetable, model) {
+  const days = model?.days || ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس"];
+  const hours = model?.hours || ["08:00-09:00", "09:00-10:00", "10:00-11:00", "11:00-12:00", "13:00-14:00", "14:00-15:00", "15:00-16:00", "16:00-17:00"];
+  const teachers = (model?.teachers || []).map(t => typeof t === "string" ? t : t.name);
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<Timetable>\n  <Teachers_Timetable>\n`;
+  teachers.forEach(t => {
+    xml += `    <Teacher>\n      <Name>${escapeXml(t)}</Name>\n`;
+    days.forEach(d => {
+      xml += `      <Day>\n        <Name>${escapeXml(d)}</Name>\n`;
+      hours.forEach(h => {
+        const act = (timetable || []).find(a => a.teacher === t && (a.day === d || a.day.includes(d)) && (a.hour === h || a.hour.includes(h)));
+        xml += `        <Hour>\n          <Name>${escapeXml(h)}</Name>\n`;
+        if (act) {
+          xml += `          <Subject>${escapeXml(act.subject)}</Subject>\n`;
+          xml += `          <Students>${escapeXml(act.students)}</Students>\n`;
+          if (act.room) xml += `          <Room>${escapeXml(act.room)}</Room>\n`;
+        }
+        xml += `        </Hour>\n`;
+      });
+      xml += `      </Day>\n`;
+    });
+    xml += `    </Teacher>\n`;
+  });
+  xml += `  </Teachers_Timetable>\n</Timetable>`;
+  return xml;
+}
+
+function generateSubgroupsXml(timetable, model) {
+  const days = model?.days || ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس"];
+  const hours = model?.hours || ["08:00-09:00", "09:00-10:00", "10:00-11:00", "11:00-12:00", "13:00-14:00", "14:00-15:00", "15:00-16:00", "16:00-17:00"];
+  const sections = (model?.sections || []).map(s => typeof s === "string" ? s : s.name);
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<Timetable>\n  <Subgroups_Timetable>\n`;
+  sections.forEach(s => {
+    xml += `    <Subgroup>\n      <Name>${escapeXml(s)}</Name>\n`;
+    days.forEach(d => {
+      xml += `      <Day>\n        <Name>${escapeXml(d)}</Name>\n`;
+      hours.forEach(h => {
+        const act = (timetable || []).find(a => a.students && a.students.includes(s) && (a.day === d || a.day.includes(d)) && (a.hour === h || a.hour.includes(h)));
+        xml += `        <Hour>\n          <Name>${escapeXml(h)}</Name>\n`;
+        if (act) {
+          xml += `          <Subject>${escapeXml(act.subject)}</Subject>\n`;
+          xml += `          <Teacher>${escapeXml(act.teacher)}</Teacher>\n`;
+          if (act.room) xml += `          <Room>${escapeXml(act.room)}</Room>\n`;
+        }
+        xml += `        </Hour>\n`;
+      });
+      xml += `      </Day>\n`;
+    });
+    xml += `    </Subgroup>\n`;
+  });
+  xml += `  </Subgroups_Timetable>\n</Timetable>`;
+  return xml;
+}
+
 export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) {
   // Step: "upload" | "generating" | "result"
   const [step, setStep] = useState("upload");
@@ -26,6 +96,8 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
   const [engineError, setEngineError] = useState("");
   const [solvedTimetable, setSolvedTimetable] = useState(null);
   const [resultFetContent, setResultFetContent] = useState("");
+  const [teachersXmlContent, setTeachersXmlContent] = useState("");
+  const [subgroupsXmlContent, setSubgroupsXmlContent] = useState("");
   const [solverStats, setSolverStats] = useState(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [placedActivities, setPlacedActivities] = useState(0);
@@ -73,6 +145,8 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
             if (data.status === "completed" && data.timetable) {
               setSolvedTimetable(data.timetable);
               setResultFetContent(data.resultFetContent || "");
+              setTeachersXmlContent(data.teachersXmlContent || "");
+              setSubgroupsXmlContent(data.subgroupsXmlContent || "");
               setSolverStats(data.stats);
               setIsGenerating(false);
               setStep("result");
@@ -223,28 +297,51 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
     setStep("upload");
   };
 
-  // Save generated files into booking
-  const handleSaveToBooking = async ({ resultFetContent: fetText, timetable: finalTable }) => {
-    const fileName = `${(parsedModel?.institution || booking.institution_name).replace(/\s+/g, "_")}_جدول_الحصص.fet`;
-    
-    // Create base64 data URL for the .fet file
-    const fetBase64 = `data:text/xml;charset=utf-8;base64,${btoa(unescape(encodeURIComponent(fetText || "")))}`;
-    
-    const newFileObj = {
-      name: fileName,
-      url: fetBase64,
-      uploaded_at: new Date().toISOString(),
-      type: "fet_generated"
-    };
+  // Save the 3 generated files strictly into booking
+  const handleSaveToBooking = async ({
+    resultFetContent: fetText,
+    teachersXmlContent: teachersXml,
+    subgroupsXmlContent: subgroupsXml,
+    timetable: finalTable,
+    model: currentModel
+  }) => {
+    const rawInst = currentModel?.institution || booking.institution_name || "المؤسسة";
+    const instClean = rawInst.replace(/\s+/g, "_");
 
-    const existingFiles = booking.final_files || [];
-    const updatedFiles = [
-      ...existingFiles.filter((f) => f.name !== fileName),
-      newFileObj
+    // Exact naming requested by user
+    const fetFileName = `${instClean}_data_and_timetable.fet`;
+    const teachersFileName = `${instClean}_teachers.xml`;
+    const subgroupsFileName = `${instClean}_subgroups.xml`;
+
+    const finalFet = fetText || resultFetContent || rawUploadedXml;
+    const finalTeachers = teachersXml || teachersXmlContent || generateTeachersXml(finalTable || solvedTimetable, currentModel || parsedModel);
+    const finalSubgroups = subgroupsXml || subgroupsXmlContent || generateSubgroupsXml(finalTable || solvedTimetable, currentModel || parsedModel);
+
+    const encodeBase64 = (str) => `data:text/xml;charset=utf-8;base64,${btoa(unescape(encodeURIComponent(str || "")))}`;
+
+    const filesToSave = [
+      {
+        name: fetFileName,
+        url: encodeBase64(finalFet),
+        uploaded_at: new Date().toISOString(),
+        type: "fet_data_and_timetable"
+      },
+      {
+        name: teachersFileName,
+        url: encodeBase64(finalTeachers),
+        uploaded_at: new Date().toISOString(),
+        type: "fet_teachers_xml"
+      },
+      {
+        name: subgroupsFileName,
+        url: encodeBase64(finalSubgroups),
+        uploaded_at: new Date().toISOString(),
+        type: "fet_subgroups_xml"
+      }
     ];
 
     const updated = await updateBookingByCode(booking.code, {
-      final_files: updatedFiles,
+      final_files: filesToSave,
       status: STATUS_DONE,
       download_allowed: true,
       updated_at: new Date().toISOString()
@@ -514,6 +611,8 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
               model={parsedModel}
               booking={booking}
               resultFetContent={resultFetContent}
+              teachersXmlContent={teachersXmlContent}
+              subgroupsXmlContent={subgroupsXmlContent}
               onSaveToBooking={handleSaveToBooking}
               onBack={() => setStep("upload")}
             />
