@@ -487,17 +487,51 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
 
               {/* Upload Error Alert */}
               {uploadError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 text-xs font-semibold flex items-center gap-2">
-                  <AlertTriangle size={16} className="flex-shrink-0" />
-                  <span>{uploadError}</span>
+                <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 text-xs font-semibold flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <AlertTriangle size={16} className="flex-shrink-0" />
+                    <span>{uploadError}</span>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setUploadedFile(null);
+                      setRawUploadedXml("");
+                      setParsedModel(null);
+                      setUploadError("");
+                      setEngineError("");
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="px-3 py-1 bg-white border border-red-200 text-red-700 hover:bg-red-100 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 flex-shrink-0"
+                  >
+                    <RefreshCw size={12} />
+                    اختيار ملف آخر
+                  </button>
                 </div>
               )}
 
               {/* Engine Error Alert */}
               {engineError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 text-xs font-semibold flex items-center gap-2">
-                  <AlertTriangle size={16} className="flex-shrink-0" />
-                  <span>{engineError}</span>
+                <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 text-xs font-semibold flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <AlertTriangle size={16} className="flex-shrink-0" />
+                    <span>{engineError}</span>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setUploadedFile(null);
+                      setRawUploadedXml("");
+                      setParsedModel(null);
+                      setUploadError("");
+                      setEngineError("");
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="px-3 py-1 bg-white border border-red-200 text-red-700 hover:bg-red-100 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 flex-shrink-0"
+                  >
+                    <RefreshCw size={12} />
+                    اختيار ملف آخر
+                  </button>
                 </div>
               )}
 
@@ -517,14 +551,34 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={handleStartGeneration}
-                      className="bg-[#0F3D3E] hover:bg-[#175253] text-white px-5 sm:px-7 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-95"
-                    >
-                      <Play size={14} className="fill-white" />
-                      بدء الإنتاج بمحرك FET
-                    </button>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUploadedFile(null);
+                          setRawUploadedXml("");
+                          setParsedModel(null);
+                          setUploadError("");
+                          setEngineError("");
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }}
+                        className="border border-[#DCE2D6] hover:border-red-300 bg-[#F5F6F0] hover:bg-red-50 text-[#8A9188] hover:text-red-700 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                        title="إلغاء واختيار ملف آخر"
+                      >
+                        <RefreshCw size={13} />
+                        ملف جديد
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleStartGeneration}
+                        className="bg-[#0F3D3E] hover:bg-[#175253] text-white px-5 sm:px-7 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-95 flex-1 sm:flex-initial"
+                      >
+                        <Play size={14} className="fill-white" />
+                        بدء الإنتاج بمحرك FET
+                      </button>
+                    </div>
                   </div>
 
                   {/* Summary Grid */}
