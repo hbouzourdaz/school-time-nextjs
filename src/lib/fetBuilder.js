@@ -373,6 +373,50 @@ export function serializeFetModelToXml(model) {
     });
   }
 
+  // 4. Global Pedagogical Constraints (From Exp2Fet Screen 4)
+  const gen = constraints.generalConstraints || {};
+  if (gen.maxGapsPerWeekTeachers !== undefined && gen.maxGapsPerWeekTeachers !== "") {
+    xml += `    <ConstraintTeachersMaxGapsPerWeek>\n`;
+    xml += `      <Weight_Percentage>100</Weight_Percentage>\n`;
+    xml += `      <Max_Gaps>${Number(gen.maxGapsPerWeekTeachers)}</Max_Gaps>\n`;
+    xml += `      <Active>true</Active>\n`;
+    xml += `    </ConstraintTeachersMaxGapsPerWeek>\n`;
+  }
+  if (gen.maxGapsPerDayTeachers !== undefined && gen.maxGapsPerDayTeachers !== "") {
+    xml += `    <ConstraintTeachersMaxGapsPerDay>\n`;
+    xml += `      <Weight_Percentage>100</Weight_Percentage>\n`;
+    xml += `      <Max_Gaps>${Number(gen.maxGapsPerDayTeachers)}</Max_Gaps>\n`;
+    xml += `      <Active>true</Active>\n`;
+    xml += `    </ConstraintTeachersMaxGapsPerDay>\n`;
+  }
+  if (gen.minHoursDailyTeachers !== undefined && gen.minHoursDailyTeachers !== "") {
+    xml += `    <ConstraintTeachersMinHoursDaily>\n`;
+    xml += `      <Weight_Percentage>100</Weight_Percentage>\n`;
+    xml += `      <Minimum_Hours_Daily>${Number(gen.minHoursDailyTeachers)}</Minimum_Hours_Daily>\n`;
+    xml += `      <Active>true</Active>\n`;
+    xml += `    </ConstraintTeachersMinHoursDaily>\n`;
+  }
+  if (gen.maxGapsPerWeekStudents !== undefined && gen.maxGapsPerWeekStudents !== "") {
+    xml += `    <ConstraintStudentsMaxGapsPerWeek>\n`;
+    xml += `      <Weight_Percentage>100</Weight_Percentage>\n`;
+    xml += `      <Max_Gaps>${Number(gen.maxGapsPerWeekStudents)}</Max_Gaps>\n`;
+    xml += `      <Active>true</Active>\n`;
+    xml += `    </ConstraintStudentsMaxGapsPerWeek>\n`;
+  }
+  if (gen.studentsStartEarly) {
+    xml += `    <ConstraintStudentsEarlyBeginnings>\n`;
+    xml += `      <Weight_Percentage>100</Weight_Percentage>\n`;
+    xml += `      <Active>true</Active>\n`;
+    xml += `    </ConstraintStudentsEarlyBeginnings>\n`;
+  }
+  if (gen.minHoursDailyStudents !== undefined && gen.minHoursDailyStudents !== "") {
+    xml += `    <ConstraintStudentsMinHoursDaily>\n`;
+    xml += `      <Weight_Percentage>100</Weight_Percentage>\n`;
+    xml += `      <Minimum_Hours_Daily>${Number(gen.minHoursDailyStudents)}</Minimum_Hours_Daily>\n`;
+    xml += `      <Active>true</Active>\n`;
+    xml += `    </ConstraintStudentsMinHoursDaily>\n`;
+  }
+
   xml += `  </Time_Constraints_List>\n\n`;
 
   // ==========================================
