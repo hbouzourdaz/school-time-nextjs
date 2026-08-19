@@ -10,7 +10,7 @@ import {
 import {
   C_INK, C_INK_TEAL, C_PAPER, C_CLAY, C_SAGE_LINE, C_SUCCESS, C_OCHRE,
   hexToRgba, formatDZD, formatDate, ALL_STATUSES_WITH_CANCEL, STATUS_CANCELLED, STATUS_REJECTED,
-  computeStats, generateExpertPassword,
+  computeStats, generateExpertPassword, DAYS_PATTERN_LABELS,
   PAYMENT_METHOD_LABELS, REG_STATUS_PENDING, REG_STATUS_APPROVED, REG_STATUS_REJECTED,
   getAdminPaymentInfo, saveAdminPaymentInfo,
 } from "@/lib/utils";
@@ -328,22 +328,163 @@ function BookingDetail({ booking: initial, onBack }) {
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl p-5 mb-4" style={{ border:`1px solid ${C_SAGE_LINE}` }}>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="font-extrabold text-lg" style={{ color: C_INK }}>{booking.institution_name}</p>
-            <p className="text-xs font-mono" style={{ color:"#8A9188" }}>{booking.code}</p>
+        <div className="bg-white rounded-2xl p-5 mb-4" style={{ border:`1px solid ${C_SAGE_LINE}` }}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="font-extrabold text-lg" style={{ color: C_INK }}>{booking.institution_name}</p>
+              <p className="text-xs font-mono" style={{ color:"#8A9188" }}>{booking.code}</p>
+            </div>
+            <StatusBadge status={status} />
           </div>
-          <StatusBadge status={status} />
-        </div>
-        <div className="space-y-0.5 mb-4">
-          <SummaryRow label="مقدم الطلب"  value={booking.applicant_name} />
-          <SummaryRow label="الهاتف"       value={booking.phone} />
-          <SummaryRow label="الولاية"      value={booking.wilaya} />
-          <SummaryRow label="الطور"        value={booking.level} />
-          <SummaryRow label="عدد الأقسام"  value={booking.total_sections} />
-          <SummaryRow label="الإجمالي"     value={formatDZD(booking.total_price)} />
-          <SummaryRow label="تاريخ الطلب"  value={formatDate(booking.created_at)} />
+
+          {/* ─── Section 1: Contact Info ─── */}
+          <div className="mb-4">
+            <p className="text-[10px] font-extrabold uppercase tracking-widest mb-2" style={{ color: "#8A9188" }}>معلومات التواصل</p>
+            <div className="space-y-0.5">
+              <SummaryRow label="مقدم الطلب"        value={booking.applicant_name} />
+              <SummaryRow label="الهاتف"             value={booking.phone} />
+              <SummaryRow label="البريد الإلكتروني" value={booking.email} />
+              <SummaryRow label="الولاية"            value={booking.wilaya} />
+              <SummaryRow label="البلدية"            value={booking.municipality} />
+            </div>
+          </div>
+
+          {/* ─── Section 2: Academic ─── */}
+          <div className="mb-4">
+            <p className="text-[10px] font-extrabold uppercase tracking-widest mb-2" style={{ color: "#8A9188" }}>المعلومات الأكاديمية</p>
+            <div className="space-y-0.5">
+              <SummaryRow label="الطور"             value={booking.level} />
+              <SummaryRow label="الخبير المسؤول"   value={booking.expert_name || booking.expert_username} />
+              <SummaryRow label="أيام الدراسة"     value={DAYS_PATTERN_LABELS[booking.days_pattern] || booking.days_pattern} />
+              <SummaryRow label="الحصص الصباحية"   value={booking.morning_periods ? `${booking.morning_periods} حصة` : "—"} />
+              <SummaryRow label="الحصص المسائية"   value={booking.afternoon_periods ? `${booking.afternoon_periods} حصة` : "—"} />
+              <SummaryRow label="بداية المسائية"   value={booking.afternoon_start_time || "—"} />
+            </div>
+          </div>
+
+          {/* ─── Section 3: Infrastructure ─── */}
+          <div className="mb-4">
+            <p className="text-[10px] font-extrabold uppercase tracking-widest mb-2" style={{ color: "#8A9188" }}>البنية التحتية</p>
+            <div className="grid grid-cols-2 gap-1">
+              {[
+                ["القاعات", booking.num_rooms],
+                ["المخابر", booking.num_labs],
+                ["الورشات", booking.num_workshops],
+                ["قاعات الإعلام الآلي", booking.num_computer_rooms],
+                ["الملاعب", booking.num_playgrounds],
+              ].map(([lbl, val]) => val ? (
+                <div key={lbl} className="flex items-center justify-between py-1 px-2 rounded-lg" style={{ backgroundColor: "#F5F6F0" }}>
+                  <span className="text-xs" style={{ color: "#8A9188" }}>{lbl}</span>
+                  <span className="font-extrabold text-xs" style={{ color: C_INK }}>{val}</span>
+                </div>
+              ) : null)}
+            </div>
+          </div>
+
+          {/* ─── Section 4: Sections ─── */}
+          <div className="mb-4">
+            <p className="text-[10px] font-extrabold uppercase tracking-widest mb-2" style={{ color: "#8A9188" }}>الأقسام</p>
+            <div className="space-y-0.5">
+              <SummaryRow label="عدد الأقسام الكلي" value={booking.total_sections} />
+              <SummaryRow label="طريقة الإدخال"    value={booking.sections_mode === "map" ? "خريطة" : "يدوي"} />
+              {booking.has_rotating_sections && (
+                <SummaryRow label="أقسام دوّرة" value="نعم ✓" />
+              )}
+              {booking.rotating_sections_names && (
+                <div className="py-1.5 border-b" style={{ borderColor: "#EDEFE9" }}>
+                  <p className="text-xs mb-0.5" style={{ color: "#8A9188" }}>أسماء الأقسام الدوّرة</p>
+                  <p className="text-xs font-semibold whitespace-pre-wrap" style={{ color: C_INK }}>{booking.rotating_sections_names}</p>
+                </div>
+              )}
+              {booking.sections_breakdown && Object.keys(booking.sections_breakdown).length > 0 && (
+                <div className="pt-1">
+                  <p className="text-xs mb-1" style={{ color: "#8A9188" }}>توزيع الأقسام:</p>
+                  <div className="grid grid-cols-2 gap-1">
+                    {Object.entries(booking.sections_breakdown).filter(([,v]) => v).map(([k, v]) => (
+                      <div key={k} className="flex items-center justify-between py-1 px-2 rounded-lg" style={{ backgroundColor: "#F5F6F0" }}>
+                        <span className="text-[11px] truncate" style={{ color: "#8A9188" }}>{k}</span>
+                        <span className="font-bold text-xs ml-1" style={{ color: C_INK }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ─── Section 5: Teachers Breakdown ─── */}
+          {booking.teachers_breakdown && booking.teachers_breakdown.length > 0 && (
+            <div className="mb-4">
+              <p className="text-[10px] font-extrabold uppercase tracking-widest mb-2" style={{ color: "#8A9188" }}>توزيع الأساتذة</p>
+              <div className="space-y-1">
+                {booking.teachers_breakdown.filter(t => t.subject && t.count).map((t, i) => (
+                  <div key={i} className="flex items-center justify-between py-1.5 px-3 rounded-xl" style={{ backgroundColor: "#F5F6F0", border: `1px solid #DCE2D6` }}>
+                    <span className="text-xs font-semibold" style={{ color: C_INK }}>{t.subject}</span>
+                    <span className="text-xs font-extrabold px-2 py-0.5 rounded-full" style={{ backgroundColor: hexToRgba(C_INK_TEAL, 0.1), color: C_INK_TEAL }}>{t.count} أستاذ</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ─── Section 6: Notes ─── */}
+          {(booking.notes_guided_work || booking.notes_catch_up_tech || booking.notes_general) && (
+            <div className="mb-4">
+              <p className="text-[10px] font-extrabold uppercase tracking-widest mb-2" style={{ color: "#8A9188" }}>الملاحظات</p>
+              <div className="space-y-2">
+                {booking.notes_guided_work && (
+                  <div className="p-3 rounded-xl" style={{ backgroundColor: "#F5F6F0", border: `1px solid #DCE2D6` }}>
+                    <p className="text-[10px] font-bold mb-0.5" style={{ color: "#8A9188" }}>ملاحظات العمل الموجّه</p>
+                    <p className="text-xs" style={{ color: C_INK }}>{booking.notes_guided_work}</p>
+                  </div>
+                )}
+                {booking.notes_catch_up_tech && (
+                  <div className="p-3 rounded-xl" style={{ backgroundColor: "#F5F6F0", border: `1px solid #DCE2D6` }}>
+                    <p className="text-[10px] font-bold mb-0.5" style={{ color: "#8A9188" }}>ملاحظات التكملة والتثقيف</p>
+                    <p className="text-xs" style={{ color: C_INK }}>{booking.notes_catch_up_tech}</p>
+                  </div>
+                )}
+                {booking.notes_general && (
+                  <div className="p-3 rounded-xl" style={{ backgroundColor: "#F5F6F0", border: `1px solid #DCE2D6` }}>
+                    <p className="text-[10px] font-bold mb-0.5" style={{ color: "#8A9188" }}>ملاحظات عامة</p>
+                    <p className="text-xs" style={{ color: C_INK }}>{booking.notes_general}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ─── Section 7: Financial ─── */}
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-widest mb-2" style={{ color: "#8A9188" }}>المالي</p>
+            <div className="space-y-0.5">
+              <SummaryRow label="الإجمالي"            value={formatDZD(booking.total_price)} />
+              {booking.rotating_sections_fee > 0 && (
+                <SummaryRow label="رسوم الأقسام الدوّرة" value={formatDZD(booking.rotating_sections_fee)} />
+              )}
+              <SummaryRow label="تاريخ الطلب"         value={formatDate(booking.created_at)} />
+              <SummaryRow label="آخر تحديث"           value={formatDate(booking.updated_at)} />
+            </div>
+          </div>
+
+          {/* ─── Map Image ─── */}
+          {booking.map_image_url && (
+            <div className="mt-4">
+              <p className="text-[10px] font-extrabold uppercase tracking-widest mb-2" style={{ color: "#8A9188" }}>صورة الخريطة المرتبة</p>
+              <img src={booking.map_image_url} alt="خريطة الأقسام" className="w-full rounded-xl border" style={{ borderColor: "#DCE2D6", maxHeight: 220, objectFit: "contain" }} />
+            </div>
+          )}
+
+          {/* ─── Assignment File ─── */}
+          {booking.assignment_file_url && (
+            <div className="mt-3">
+              <a href={booking.assignment_file_url} target="_blank" rel="noopener noreferrer"
+                 className="flex items-center gap-2 text-xs font-bold py-2 px-3 rounded-xl border"
+                 style={{ borderColor: C_INK_TEAL, color: C_INK_TEAL }}>
+                <Download size={14} /> تحميل ملف الإسناد المرتب
+              </a>
+            </div>
+          )}
         </div>
 
         {/* ─── Saved Final Files Section ─── */}
@@ -433,7 +574,9 @@ function BookingDetail({ booking: initial, onBack }) {
           </div>
         )}
 
-        <Field label="تأكيد الأدمن للطلب">
+        {/* ─── Actions and Status Management Card ─── */}
+        <div className="bg-white rounded-2xl p-5 mb-4" style={{ border: `1px solid ${C_SAGE_LINE}` }}>
+          <Field label="تأكيد الأدمن للطلب">
           <button onClick={() => setAdminConfirmed(p => !p)}
                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border-2 btn-interactive"
                   style={adminConfirmed
