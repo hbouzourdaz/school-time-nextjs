@@ -406,6 +406,46 @@ function BookingDetail({ booking: initial, expert, onBack, onSaved }) {
           <SummaryRow label="آخر تحديث" value={formatDate(booking.updated_at)} />
         </Card>
 
+        {/* ─── Saved Final Files Section ─── */}
+        {booking.final_files && booking.final_files.length > 0 && (
+          <div className="bg-[#EDF7F2] rounded-2xl p-4 sm:p-5 mb-4 border border-[#3F7859]/30">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
+                <FileCode size={18} className="text-[#3F7859]" />
+                <h4 className="font-extrabold text-sm text-[#0F3D3E]">
+                  ملفات الحجز النهائية المحفوظة ({booking.final_files.length})
+                </h4>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#3F7859] text-white">
+                متاحة للعميل
+              </span>
+            </div>
+            <div className="space-y-2">
+              {booking.final_files.map((file, idx) => (
+                <div key={idx} className="bg-white p-3 rounded-xl border border-[#DCE2D6] flex items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="w-8 h-8 rounded-lg bg-[#0F3D3E] text-white text-[10px] font-mono font-bold flex items-center justify-center flex-shrink-0">
+                      {file.name.endsWith(".fet") ? "FET" : "XML"}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-bold text-xs text-[#0F3D3E] truncate font-mono">{file.name}</p>
+                      <p className="text-[10px] text-[#8A9188]">{file.uploaded_at ? formatDate(file.uploaded_at) : "ملف مرفوع"}</p>
+                    </div>
+                  </div>
+                  <a
+                    href={file.url}
+                    download={file.name}
+                    className="bg-[#F5F6F0] hover:bg-[#0F3D3E] text-[#0F3D3E] hover:text-white border border-[#DCE2D6] px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0"
+                  >
+                    <Download size={13} />
+                    تحميل
+                  </a>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {booking.status === STATUS_CANCELLED && booking.cancel_reason && (
           <div className="bg-white rounded-2xl p-4 mb-4"
                style={{ border: `1px solid ${hexToRgba(C_CLAY, 0.3)}` }}>
