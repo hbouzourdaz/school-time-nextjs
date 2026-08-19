@@ -238,8 +238,8 @@ export function Navbar({ onNavigate }) {
   );
 }
 
-// ===== Stepper =====
-export function NotificationBell({ notifications, unreadCount, onOpen, onMarkAllRead }) {
+// ===== NotificationBell (Responsive for Mobile & Desktop) =====
+export function NotificationBell({ notifications = [], unreadCount = 0, onOpen, onMarkAllRead }) {
   const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
@@ -256,72 +256,145 @@ export function NotificationBell({ notifications, unreadCount, onOpen, onMarkAll
 
   return (
     <div className="relative">
-      <button onClick={handleToggle}
-              className="relative p-2 rounded-xl transition-colors btn-interactive"
-              style={{ color: unreadCount > 0 ? C_OCHRE : "#8A9188" }}>
-        {unreadCount > 0 ? <BellRing size={20} /> : <Bell size={20} />}
+      <button
+        onClick={handleToggle}
+        aria-label="الإشعارات"
+        className="relative p-2.5 rounded-xl transition-all active:scale-95 hover:bg-black/5"
+        style={{ color: unreadCount > 0 ? C_OCHRE : "#8A9188" }}
+      >
+        {unreadCount > 0 ? (
+          <BellRing size={20} className="animate-bounce" />
+        ) : (
+          <Bell size={20} />
+        )}
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -left-0.5 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center text-white"
-                style={{ backgroundColor: C_CLAY }}>
-            {unreadCount > 9 ? "9+" : unreadCount}
+          <span
+            className="absolute 0 top-1 left-1 min-w-4.5 h-4.5 px-1 rounded-full text-[10px] font-extrabold flex items-center justify-center text-white shadow-xs"
+            style={{ backgroundColor: C_CLAY }}
+          >
+            {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
       </button>
 
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white rounded-2xl shadow-2xl z-50"
-               style={{ border: `1px solid ${C_SAGE_LINE}` }}>
-            <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: "#EDEFE9" }}>
-              <h3 className="font-bold text-sm" style={{ color: C_INK }}>الإشعارات</h3>
-              {unreadCount > 0 && (
-                <button onClick={handleMarkAll} className="text-xs font-semibold" style={{ color: C_INK_TEAL }}>
-                  قراءة الكل
+          {/* Backdrop with blur for mobile and desktop click-away */}
+          <div
+            className="fixed inset-0 z-40 bg-black/30 backdrop-blur-xs transition-opacity"
+            onClick={() => setOpen(false)}
+          />
+
+          {/* Responsive Notification Panel */}
+          <div
+            className="fixed sm:absolute top-14 sm:top-full left-2 sm:left-0 right-2 sm:right-auto mt-2 sm:w-84 max-w-md sm:max-w-none mx-auto sm:mx-0 max-h-[82vh] sm:max-h-96 flex flex-col bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+            style={{ borderColor: C_SAGE_LINE }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b bg-white flex-shrink-0" style={{ borderColor: "#EDEFE9" }}>
+              <div className="flex items-center gap-2">
+                <h3 className="font-extrabold text-sm" style={{ color: C_INK }}>الإشعارات</h3>
+                {unreadCount > 0 && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                        style={{ backgroundColor: hexToRgba(C_OCHRE, 0.15), color: C_OCHRE }}>
+                    {unreadCount} جديد
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <button
+                    onClick={handleMarkAll}
+                    className="text-xs font-bold px-2 py-1 rounded-lg hover:bg-black/5 transition-colors"
+                    style={{ color: C_INK_TEAL }}
+                  >
+                    تحديد الكل كمقروء
+                  </button>
+                )}
+                <button
+                  onClick={() => setOpen(false)}
+                  className="p-1 rounded-lg hover:bg-black/5 sm:hidden transition-colors"
+                  style={{ color: "#8A9188" }}
+                  aria-label="إغلاق"
+                >
+                  <X size={18} />
                 </button>
-              )}
+              </div>
             </div>
-            <div className="divide-y" style={{ borderColor: "#EDEFE9" }}>
+
+            {/* Notification List (Scrollable) */}
+            <div className="overflow-y-auto divide-y flex-1 overscroll-contain" style={{ borderColor: "#EDEFE9" }}>
               {visibleNotifications.length === 0 ? (
-                <div className="p-6 text-center">
-                  <Bell size={24} className="mx-auto mb-2" style={{ color: "#DCE2D6" }} />
-                  <p className="text-sm" style={{ color: "#8A9188" }}>لا توجد إشعارات</p>
+                <div className="py-8 px-4 text-center">
+                  <div className="w-12 h-12 rounded-full mx-auto mb-2 flex items-center justify-center"
+                       style={{ backgroundColor: "#F5F6F0" }}>
+                    <Bell size={20} style={{ color: "#8A9188" }} />
+                  </div>
+                  <p className="text-xs font-bold" style={{ color: C_INK }}>لا توجد إشعارات جديدة</p>
+                  <p className="text-[11px] mt-0.5" style={{ color: "#8A9188" }}>ستظهر هنا جميع التنبيهات الخاصة بالحجوزات</p>
                 </div>
               ) : (
                 visibleNotifications.map((n) => (
-                  <div key={n.id} className="px-4 py-3 transition-colors"
-                       style={{ backgroundColor: n.read ? "transparent" : hexToRgba(C_INK_TEAL, 0.04) }}>
+                  <div
+                    key={n.id}
+                    className="px-4 py-3 transition-colors active:bg-black/5"
+                    style={{ backgroundColor: n.read ? "transparent" : hexToRgba(C_INK_TEAL, 0.04) }}
+                  >
                     <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-                           style={{
-                             backgroundColor: n.type === "success" ? hexToRgba(C_SUCCESS, 0.12)
-                               : n.type === "error" ? hexToRgba(C_CLAY, 0.12)
-                               : hexToRgba(C_OCHRE, 0.12),
-                           }}>
-                        {n.type === "success" ? <CheckCircle size={14} color={C_SUCCESS} />
-                          : n.type === "error" ? <AlertCircle size={14} color={C_CLAY} />
-                          : <Bell size={14} color={C_OCHRE} />}
+                      <div
+                        className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 shadow-2xs"
+                        style={{
+                          backgroundColor:
+                            n.type === "success"
+                              ? hexToRgba(C_SUCCESS, 0.14)
+                              : n.type === "error"
+                              ? hexToRgba(C_CLAY, 0.14)
+                              : hexToRgba(C_OCHRE, 0.14),
+                        }}
+                      >
+                        {n.type === "success" ? (
+                          <CheckCircle size={15} color={C_SUCCESS} />
+                        ) : n.type === "error" ? (
+                          <AlertCircle size={15} color={C_CLAY} />
+                        ) : (
+                          <Bell size={15} color={C_OCHRE} />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold" style={{ color: C_INK }}>{n.title}</p>
-                        <p className="text-xs mt-0.5" style={{ color: "#8A9188" }}>{n.message}</p>
-                        <p className="text-[10px] mt-1" style={{ color: "#B5B8B3" }}>
-                          {new Date(n.created_at).toLocaleDateString("ar-DZ", { hour: "2-digit", minute: "2-digit" })}
+                        <div className="flex items-center justify-between gap-1">
+                          <p className="text-xs font-extrabold truncate" style={{ color: C_INK }}>
+                            {n.title}
+                          </p>
+                          {!n.read && (
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: C_OCHRE }} />
+                          )}
+                        </div>
+                        <p className="text-[11px] mt-0.5 line-clamp-2 leading-relaxed" style={{ color: "#5A6058" }}>
+                          {n.message}
+                        </p>
+                        <p className="text-[10px] mt-1 font-mono" style={{ color: "#8A9188" }}>
+                          {new Date(n.created_at).toLocaleDateString("ar-DZ", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </p>
                       </div>
-                      {!n.read && (
-                        <div className="w-2 h-2 rounded-full flex-shrink-0 mt-2" style={{ backgroundColor: C_OCHRE }} />
-                      )}
                     </div>
                   </div>
                 ))
               )}
             </div>
+
+            {/* Footer */}
             {notifications.length > 5 && !showAll && (
-              <button onClick={() => setShowAll(true)}
-                      className="w-full p-3 text-center text-sm font-semibold border-t"
-                      style={{ borderColor: "#EDEFE9", color: C_INK_TEAL }}>
-                عرض الكل ({notifications.length})
+              <button
+                onClick={() => setShowAll(true)}
+                className="w-full py-2.5 px-4 text-center text-xs font-bold border-t hover:bg-black/5 transition-colors flex-shrink-0 bg-white"
+                style={{ borderColor: "#EDEFE9", color: C_INK_TEAL }}
+              >
+                عرض كل الإشعارات ({notifications.length})
               </button>
             )}
           </div>
