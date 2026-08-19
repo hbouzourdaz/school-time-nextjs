@@ -3,11 +3,12 @@
 # ==========================================
 FROM debian:bookworm-slim AS builder
 
-# تثبيت أدوات البناء الأساسية و Qt5
+# تثبيت أدوات البناء الأساسية و Qt5 ودعم xz
 RUN apt-get update && apt-get install -y \
     wget \
     curl \
-    bzip2 \
+    xz-utils \
+    tar \
     g++ \
     make \
     qtbase5-dev \
@@ -16,17 +17,17 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /build
 
-# جلب أحدث ملف تلقائياً من الموقع، تحميله، وفك ضغطه
-RUN LATEST_FILE=$(curl -s https://lalescu.ro/liviu/fet/download/ | grep -o 'fet-[0-9]\+\.[0-9]\+\.[0-9]\+\.tar\.bz2' | sort -V | tail -n 1) \
+# جلب أحدث ملف .tar.xz تلقائياً من الموقع، تحميله، وفك ضغطه
+RUN LATEST_FILE=$(curl -s https://lalescu.ro/liviu/fet/download/ | grep -o 'fet-[0-9.]*\.tar\.xz' | head -n 1) \
     && echo "Downloading latest FET file: $LATEST_FILE" \
-    && wget https://lalescu.ro/liviu/fet/download/$LATEST_FILE \
-    && tar -xjf $LATEST_FILE \
-    && DIR_NAME=$(echo $LATEST_FILE | sed 's/.tar.bz2//') \
-    && mv $DIR_NAME fet-latest
+    && wget "https://lalescu.ro/liviu/fet/download/$LATEST_FILE" \
+    && tar -xf "$LATEST_FILE" \
+    && DIR_NAME=$(echo "$LATEST_FILE" | sed 's/\.tar\.xz//') \
+    && mv "$DIR_NAME" fet-latest
 
 WORKDIR /build/fet-latest
 
-# بناء نسخة سطر الأوامر فقط (fet-cl) لتسريع العملية
+# بناء نسخة سطر الأوامر فقط (fet-cl) لتسريع وتوفير الموارد
 RUN qmake src/src-cl.pro \
     && make -j$(nproc)
 
@@ -46,7 +47,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# نسخ المحرك المبني من المرحلة الأولى (دائماً سيكون أحدث إصدار)
+# نسخ المحرك المبني من المرحلة الأولى (أحدث إصدار دائماً)
 COPY --from=builder /build/fet-latest/fet-cl /usr/bin/fet-cl
 
 # إعطاء صلاحية التنفيذ للمحرك
