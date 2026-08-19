@@ -550,7 +550,7 @@ function Exp2FetTeacherTable({ teacherName, teacherSubj, teacherIdx, timetable, 
 
                 {/* Hours Columns */}
                 {hours.map((hour, hIdx) => {
-                  const cellAct = normalizedTimetable.find(
+                  const cellAct = timetable.find(
                     a => a.teacher === teacherName && a.day === day && a.hour === hour
                   );
 
@@ -697,7 +697,7 @@ function Exp2FetSectionTable({ sectionName, timetable, days, hours, model, isMon
 
                 {/* Hours Columns */}
                 {hours.map((hour, hIdx) => {
-                  const acts = normalizedTimetable.filter(
+                  const acts = timetable.filter(
                     a => a.students && a.students.includes(sectionName) && a.day === day && a.hour === hour
                   );
 
