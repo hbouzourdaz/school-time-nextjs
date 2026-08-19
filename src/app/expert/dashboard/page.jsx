@@ -374,10 +374,10 @@ function BookingDetail({ booking: initial, expert, onBack, onSaved }) {
           <div className="min-w-0 flex-1">
             <h3 className="font-extrabold text-sm sm:text-base flex items-center gap-2">
               <Sparkles size={18} className="text-amber-300 flex-shrink-0" />
-              توليد وتخصيص جدول الحجز بمحرك FET
+              رفع ملف FET وتوليد جداول الحجز
             </h3>
             <p className="text-xs text-white/80 mt-1">
-              تخصيص القيود (تفريغات الأساتذة، القاعات، الحصص)، تشغيل المحرك الذكي، وطباعة الجداول PDF.
+              رفع ملف .fet مباشرة لتشغيل محرك FET واستخراج جداول الأساتذة والأقسام بصيغة PDF وحفظها في الحجز.
             </p>
           </div>
           <button
@@ -385,8 +385,8 @@ function BookingDetail({ booking: initial, expert, onBack, onSaved }) {
             onClick={() => setShowFetModal(true)}
             className="bg-white hover:bg-white/95 text-[#0F3D3E] font-extrabold px-4 py-2.5 rounded-xl text-xs transition-all shadow-sm active:scale-95 flex items-center gap-2 whitespace-nowrap"
           >
-            <Play size={14} className="fill-[#0F3D3E]" />
-            فتح محرر وتوليد الجدول
+            <Upload size={14} className="text-[#0F3D3E]" />
+            رفع ملف FET وتوليد الجدول
           </button>
         </div>
 
