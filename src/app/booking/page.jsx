@@ -129,6 +129,12 @@ export default function BookingFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [experts, setExperts] = useState([]);
   const [expertsLoading, setExpertsLoading] = useState(true);
+  // Custom subjects the user adds or renames
+  const [customSubjects, setCustomSubjects] = useState([]);
+  const [newSubjectName, setNewSubjectName] = useState("");
+  const [showSubjectManager, setShowSubjectManager] = useState(false);
+  const [editingSubjectIdx, setEditingSubjectIdx] = useState(null);
+  const [editingSubjectVal, setEditingSubjectVal] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -195,6 +201,44 @@ export default function BookingFormPage() {
       ...prev,
       teachersBreakdown: prev.teachersBreakdown.filter((t) => t.id !== id),
     }));
+  }
+
+  // All available subject suggestions (defaults + custom)
+  function allSubjects() {
+    const def = DEFAULT_SUBJECTS[form.level] || [];
+    return [...def, ...customSubjects.filter((s) => !def.includes(s))];
+  }
+
+  function addCustomSubject() {
+    const name = newSubjectName.trim();
+    if (!name || allSubjects().includes(name)) { setNewSubjectName(""); return; }
+    setCustomSubjects((prev) => [...prev, name]);
+    setNewSubjectName("");
+  }
+
+  function deleteCustomSubject(subj) {
+    setCustomSubjects((prev) => prev.filter((s) => s !== subj));
+  }
+
+  function startEditSubject(idx, val) {
+    setEditingSubjectIdx(idx);
+    setEditingSubjectVal(val);
+  }
+
+  function confirmEditSubject(idx) {
+    const oldName = customSubjects[idx];
+    const newName = editingSubjectVal.trim();
+    if (!newName) { setEditingSubjectIdx(null); return; }
+    setCustomSubjects((prev) => prev.map((s, i) => i === idx ? newName : s));
+    // Update any teacher row using the old name
+    setForm((prev) => ({
+      ...prev,
+      teachersBreakdown: prev.teachersBreakdown.map((t) =>
+        t.subject === oldName ? { ...t, subject: newName } : t
+      ),
+    }));
+    setEditingSubjectIdx(null);
+    setEditingSubjectVal("");
   }
 
   async function handleConfirmBooking() {
@@ -490,14 +534,21 @@ export default function BookingFormPage() {
       {/* Card 8: Teachers */}
       <Card icon={ClipboardList} title="ملاحظات المعلمين" number="8">
         <Field label="المعلمون والاستاذة" hint="أدخل بيانات يدوياً أو إرفق صورة الخريطة المرتبة أعلى">
+          {/* datalist for subject suggestions */}
+          <datalist id="subjects-list">
+            {allSubjects().map((s) => <option key={s} value={s} />)}
+          </datalist>
+
           {form.teachersBreakdown.map((t) => (
             <div key={t.id} className="flex items-center gap-2 mb-3">
-              <select value={t.subject} onChange={(e) => updateTeacherSubject(t.id, e.target.value)}
-                      className="flex-1 rounded-xl border px-3 py-3 text-base bg-white"
-                      style={{ borderColor: "#DCE2D6", color: "#0F3D3E" }}>
-                <option value="">المادة...</option>
-                {(DEFAULT_SUBJECTS[form.level] || []).map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <input
+                list="subjects-list"
+                value={t.subject}
+                onChange={(e) => updateTeacherSubject(t.id, e.target.value)}
+                placeholder="اكتب أو اختر المادة..."
+                className="flex-1 rounded-xl border px-3 py-3 text-base bg-white focus:outline-none focus:ring-2"
+                style={{ borderColor: "#DCE2D6", color: "#0F3D3E", "--tw-ring-color": "rgba(15,61,62,0.3)" }}
+              />
               <NumberInput className="w-20" min="0" value={t.count}
                            onChange={(e) => updateTeacherCount(t.id, e.target.value)} placeholder="عدد" />
               <button type="button" onClick={() => removeTeacherRow(t.id)} style={{ color: "#B5533C" }}>
@@ -505,11 +556,105 @@ export default function BookingFormPage() {
               </button>
             </div>
           ))}
-          <button type="button" onClick={addTeacherRow}
-                  className="flex items-center gap-1.5 text-base font-bold mt-2"
-                  style={{ color: "#0F3D3E" }}>
-            <Plus size={16} /> إضافة مادة
-          </button>
+
+          <div className="flex items-center gap-3 mt-3 flex-wrap">
+            <button type="button" onClick={addTeacherRow}
+                    className="flex items-center gap-1.5 text-base font-bold"
+                    style={{ color: "#0F3D3E" }}>
+              <Plus size={16} /> إضافة مادة
+            </button>
+            <button type="button" onClick={() => setShowSubjectManager((v) => !v)}
+                    className="flex items-center gap-1.5 text-base font-semibold px-3 py-1.5 rounded-xl border transition-all"
+                    style={showSubjectManager
+                      ? { borderColor: "#0F3D3E", backgroundColor: "rgba(15,61,62,0.07)", color: "#0F3D3E" }
+                      : { borderColor: "#DCE2D6", color: "#8A9188" }}>
+              ✏️ إدارة أسماء المواد
+            </button>
+          </div>
+
+          {/* ─── Subject Manager Panel ─── */}
+          {showSubjectManager && (
+            <div className="mt-4 p-4 rounded-2xl border space-y-3"
+                 style={{ backgroundColor: "#F5F6F0", borderColor: "#DCE2D6" }}>
+              <p className="text-base font-extrabold" style={{ color: "#0F3D3E" }}>إدارة أسماء المواد</p>
+
+              {/* Default subjects — read only labels */}
+              <div>
+                <p className="text-xs font-bold mb-1.5" style={{ color: "#8A9188" }}>المواد الافتراضية (للطور الحالي)</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(DEFAULT_SUBJECTS[form.level] || []).map((s) => (
+                    <span key={s} className="px-2.5 py-1 rounded-lg text-xs font-semibold"
+                          style={{ backgroundColor: "rgba(15,61,62,0.08)", color: "#0F3D3E", border: "1px solid rgba(15,61,62,0.15)" }}>
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom subjects — editable */}
+              {customSubjects.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold mb-1.5" style={{ color: "#8A9188" }}>المواد المضافة يدوياً</p>
+                  <div className="space-y-1.5">
+                    {customSubjects.map((s, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        {editingSubjectIdx === idx ? (
+                          <>
+                            <input
+                              value={editingSubjectVal}
+                              onChange={(e) => setEditingSubjectVal(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") confirmEditSubject(idx); if (e.key === "Escape") setEditingSubjectIdx(null); }}
+                              autoFocus
+                              className="flex-1 rounded-xl border px-3 py-2 text-base focus:outline-none"
+                              style={{ borderColor: "#0F3D3E", color: "#0F3D3E" }}
+                            />
+                            <button type="button" onClick={() => confirmEditSubject(idx)}
+                                    className="text-xs font-bold px-3 py-2 rounded-xl"
+                                    style={{ backgroundColor: "#0F3D3E", color: "white" }}>حفظ</button>
+                            <button type="button" onClick={() => setEditingSubjectIdx(null)}
+                                    className="text-xs font-semibold px-2 py-2 rounded-xl"
+                                    style={{ color: "#8A9188" }}>إلغاء</button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="flex-1 px-3 py-2 rounded-xl text-base"
+                                  style={{ backgroundColor: "white", border: "1px solid #DCE2D6", color: "#0F3D3E" }}>
+                              {s}
+                            </span>
+                            <button type="button" onClick={() => startEditSubject(idx, s)}
+                                    className="text-xs font-semibold px-2.5 py-2 rounded-xl border transition-all hover:bg-white"
+                                    style={{ borderColor: "#DCE2D6", color: "#0F3D3E" }}>تعديل</button>
+                            <button type="button" onClick={() => deleteCustomSubject(s)}
+                                    style={{ color: "#B5533C" }}><Trash2 size={15} /></button>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Add new custom subject */}
+              <div className="flex gap-2 pt-1">
+                <input
+                  value={newSubjectName}
+                  onChange={(e) => setNewSubjectName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") addCustomSubject(); }}
+                  placeholder="اسم مادة جديدة..."
+                  className="flex-1 rounded-xl border px-3 py-2.5 text-base focus:outline-none"
+                  style={{ borderColor: "#DCE2D6", color: "#0F3D3E" }}
+                />
+                <button type="button" onClick={addCustomSubject}
+                        disabled={!newSubjectName.trim()}
+                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-base font-bold transition-all"
+                        style={newSubjectName.trim()
+                          ? { backgroundColor: "#0F3D3E", color: "white" }
+                          : { backgroundColor: "#DCE2D6", color: "#8A9188" }}>
+                  <Plus size={15} /> إضافة
+                </button>
+              </div>
+            </div>
+          )}
         </Field>
       </Card>
 
