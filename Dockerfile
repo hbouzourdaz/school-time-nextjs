@@ -53,6 +53,20 @@ COPY --from=builder /build/fet-latest/fet-cl /usr/bin/fet-cl
 # إعطاء صلاحية التنفيذ للمحرك
 RUN chmod +x /usr/bin/fet-cl
 
+# تمرير متغيرات البيئة العامة (NEXT_PUBLIC_*) كـ Build Arguments
+# حتى يتمكن Next.js من تضمينها في Bundle وقت البناء
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG ADMIN_PASSWORD
+ARG RESEND_API_KEY
+ARG FROM_EMAIL
+
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV ADMIN_PASSWORD=$ADMIN_PASSWORD
+ENV RESEND_API_KEY=$RESEND_API_KEY
+ENV FROM_EMAIL=$FROM_EMAIL
+
 # نسخ وبناء مشروع Next.js
 COPY package.json package-lock.json* ./
 RUN npm install
@@ -60,4 +74,6 @@ COPY . .
 RUN npm run build
 
 EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 CMD ["npm", "start"]

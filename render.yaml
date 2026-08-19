@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: school-time-nextjs
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: frankfurt
+    # =====================================================
+    # ⚠️ أضف هذه المتغيرات يدوياً في لوحة Render:
+    #    Dashboard > Environment > Add Environment Variable
+    # =====================================================
+    # Build Arguments: تُمرَّر إلى Dockerfile وقت البناء
+    # مطلوبة لأن NEXT_PUBLIC_* تُضمَّن في Next.js Bundle
+    dockerBuildArgs:
+      NEXT_PUBLIC_SUPABASE_URL: ""
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ""
+      ADMIN_PASSWORD: ""
+      RESEND_API_KEY: ""
+      FROM_EMAIL: ""
+    # Runtime Environment Variables
+    envVars:
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: ""
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        value: ""
+      - key: ADMIN_PASSWORD
+        value: ""
+      - key: RESEND_API_KEY
+        value: ""
+      - key: FROM_EMAIL
+        value: ""
+      - key: PORT
+        value: "3000"
+      - key: HOSTNAME
+        value: "0.0.0.0"
