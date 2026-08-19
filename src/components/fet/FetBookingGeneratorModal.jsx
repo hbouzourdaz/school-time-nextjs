@@ -8,6 +8,7 @@ import {
 import { parseFetXmlToModel } from "@/lib/fetBuilder";
 import { updateBookingByCode } from "@/lib/bookings";
 import { STATUS_DONE } from "@/lib/utils";
+import { isSupabaseConfigured, uploadToSupabaseStorage } from "@/lib/supabase";
 
 // Helpers to build teachers.xml and subgroups.xml if missing from raw output
 function escapeXml(unsafe) {
@@ -79,7 +80,7 @@ function generateSubgroupsXml(timetable, model) {
   return xml;
 }
 
-export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) {
+export default function FetBookingGeneratorModal({ booking = {}, onClose, onSaved }) {
   // Step: "upload" | "generating" | "result"
   const [step, setStep] = useState("upload");
 
@@ -106,10 +107,12 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
   const [saveSuccess, setSaveSuccess] = useState(false);
   const abortControllerRef = useRef(null);
 
+  const bookingCode = booking?.code || "DEFAULT";
+
   // Resume active job if exists
   useEffect(() => {
     try {
-      const savedJobRaw = localStorage.getItem("active_fet_job_" + booking.code);
+      const savedJobRaw = localStorage.getItem("active_fet_job_" + bookingCode);
       if (savedJobRaw) {
         const savedJob = JSON.parse(savedJobRaw);
         if (savedJob.runId) {
@@ -124,7 +127,7 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
     } catch (e) {
       // ignore
     }
-  }, [booking.code]);
+  }, [bookingCode]);
 
   // Time & Background Job Polling hooks
   useEffect(() => {
@@ -335,28 +338,49 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
     }, 400);
   };
 
-  // Save the 3 generated files strictly into booking
+  // Save the 3 generated files strictly into booking (Supabase Cloud + record)
   const handleSaveToBooking = async () => {
     setSavingToBooking(true);
     try {
       const encodeBase64 = (str) => `data:text/xml;charset=utf-8;base64,${btoa(unescape(encodeURIComponent(str || "")))}`;
 
+      const uploadOrEncode = async (content, fileName) => {
+        if (!content) return "";
+        if (isSupabaseConfigured()) {
+          try {
+            const blob = new Blob([content], { type: "text/xml;charset=utf-8" });
+            const file = new File([blob], fileName, { type: "text/xml" });
+            const url = await uploadToSupabaseStorage(file, `final-files/${booking.code}`);
+            if (url) return url;
+          } catch (err) {
+            console.warn("Supabase file upload error, using data URL fallback:", err);
+          }
+        }
+        return encodeBase64(content);
+      };
+
+      const [fetUrl, teachersUrl, subgroupsUrl] = await Promise.all([
+        uploadOrEncode(finalFet, fetFileName),
+        uploadOrEncode(finalTeachers, teachersFileName),
+        uploadOrEncode(finalSubgroups, subgroupsFileName),
+      ]);
+
       const filesToSave = [
         {
           name: fetFileName,
-          url: encodeBase64(finalFet),
+          url: fetUrl,
           uploaded_at: new Date().toISOString(),
           type: "fet_data_and_timetable"
         },
         {
           name: teachersFileName,
-          url: encodeBase64(finalTeachers),
+          url: teachersUrl,
           uploaded_at: new Date().toISOString(),
           type: "fet_teachers_xml"
         },
         {
           name: subgroupsFileName,
-          url: encodeBase64(finalSubgroups),
+          url: subgroupsUrl,
           uploaded_at: new Date().toISOString(),
           type: "fet_subgroups_xml"
         }
@@ -387,7 +411,7 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-hidden animate-in fade-in duration-200"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-hidden animate-in fade-in duration-200"
       style={{ direction: "rtl" }}
     >
       <div
@@ -409,14 +433,16 @@ export default function FetBookingGeneratorModal({ booking, onClose, onSaved }) 
                   منصة إنتاج ملفات FET
                 </h2>
                 <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full bg-[#EDF7F2] text-[#3F7859] border border-[#3F7859]/20 truncate max-w-[150px] sm:max-w-none">
-                  {booking.institution_name}
+                  {booking?.institution_name || "المؤسسة التعليمية"}
                 </span>
-                <span className="font-mono text-[10px] sm:text-xs font-semibold px-1.5 py-0.5 rounded-full bg-[#F5F6F0] text-[#0F3D3E] border border-[#DCE2D6]">
-                  {booking.code}
-                </span>
+                {booking?.code && (
+                  <span className="font-mono text-[10px] sm:text-xs font-semibold px-1.5 py-0.5 rounded-full bg-[#F5F6F0] text-[#0F3D3E] border border-[#DCE2D6]">
+                    {booking.code}
+                  </span>
+                )}
               </div>
               <p className="text-[10px] sm:text-[11px] text-[#8A9188] mt-0.5">
-                {booking.level} · {booking.total_sections} أقسام · {booking.wilaya}
+                {booking?.level || "غير محدد"} · {booking?.total_sections || 0} أقسام · {booking?.wilaya || ""}
               </p>
             </div>
           </div>
