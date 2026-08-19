@@ -123,6 +123,7 @@ export default function FetGeneratorPage() {
   // Solver
   const [isGenerating, setIsGenerating] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [pendingDestination, setPendingDestination] = useState(null);
   const [engineError, setEngineError] = useState("");
   const [solvedTimetable, setSolvedTimetable] = useState(null);
   const [solverStats, setSolverStats] = useState(null);
@@ -185,15 +186,49 @@ export default function FetGeneratorPage() {
     };
   }, [isGenerating, runId]);
 
+  // Handle Browser Back Button & Unload Trapping
   useEffect(() => {
+    if (!isGenerating) return;
+
+    // Push dummy state to capture back button
+    window.history.pushState({ inGeneration: true }, "", window.location.href);
+
+    const handlePopState = (e) => {
+      // Re-push state so user stays on the page
+      window.history.pushState({ inGeneration: true }, "", window.location.href);
+      setPendingDestination("back");
+      setShowCancelModal(true);
+    };
+
     const handleBeforeUnload = (e) => {
-      if (isGenerating) {
-        e.preventDefault();
-        e.returnValue = "جاري توليد الجدول، هل أنت متأكد من رغبتك في المغادرة؟ سيؤدي ذلك إلى إيقاف العملية.";
+      e.preventDefault();
+      e.returnValue = "جاري توليد الجدول، هل أنت متأكد من رغبتك في المغادرة؟ سيؤدي ذلك إلى إيقاف العملية.";
+      return e.returnValue;
+    };
+
+    // Global link click interceptor (Navbar, internal links, etc.)
+    const handleDocumentClick = (e) => {
+      const targetLink = e.target.closest("a, button[data-href]");
+      if (targetLink) {
+        const href = targetLink.getAttribute("href") || targetLink.getAttribute("data-href");
+        if (href && !href.startsWith("#") && !href.startsWith("javascript:")) {
+          e.preventDefault();
+          e.stopPropagation();
+          setPendingDestination(href);
+          setShowCancelModal(true);
+        }
       }
     };
+
+    window.addEventListener("popstate", handlePopState);
     window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("click", handleDocumentClick, true);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("click", handleDocumentClick, true);
+    };
   }, [isGenerating]);
 
   /* ────── File handling ────── */
@@ -316,11 +351,22 @@ export default function FetGeneratorPage() {
       abortControllerRef.current.abort();
     }
     setIsGenerating(false);
-    setStep("review");
+    
+    if (pendingDestination) {
+      if (pendingDestination === "back") {
+        router.back();
+      } else {
+        router.push(pendingDestination);
+      }
+      setPendingDestination(null);
+    } else {
+      setStep("review");
+    }
   };
 
   const handleNavigationAttempt = (destinationUrl) => {
     if (isGenerating) {
+      setPendingDestination(destinationUrl);
       setShowCancelModal(true);
     } else {
       router.push(destinationUrl);
@@ -652,11 +698,17 @@ export default function FetGeneratorPage() {
                 <AlertTriangle size={32} />
               </div>
 
-              <h3 className="text-lg font-bold text-gray-900 mb-2">تحذير: إيقاف عملية الإنتاج</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                {pendingDestination ? "تحذير: مغادرة الصفحة وإيقاف الإنتاج" : "تحذير: إيقاف عملية الإنتاج"}
+              </h3>
               <p className="text-xs sm:text-sm text-gray-600 mb-6 leading-relaxed">
                 عملية توليد الجدول الزمني قيد التشغيل حالياً ({formatTime(elapsedSeconds)}).
                 <br />
-                <span className="font-bold text-red-600">إذا غادرت أو قمت بالإلغاء الآن سيتم إيقاف المحرك وفقدان التقدم الحالي.</span>
+                <span className="font-bold text-red-600">
+                  {pendingDestination
+                    ? "الانتقال لصفحة أخرى سيوقف عمل المحرك فوراً ويلغي كافة النتائج غير المحفوظة."
+                    : "إيقاف التوليد الآن سيؤدي إلى إلغاء المعالجة وفقدان التقدم الحالي."}
+                </span>
               </p>
 
               <div className="flex items-center gap-3 justify-center">
@@ -664,10 +716,13 @@ export default function FetGeneratorPage() {
                   onClick={handleConfirmCancel}
                   className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg"
                 >
-                  نعم، أوقف التوليد
+                  {pendingDestination ? "نعم، غادر وأوقف التوليد" : "نعم، أوقف التوليد"}
                 </button>
                 <button
-                  onClick={() => setShowCancelModal(false)}
+                  onClick={() => {
+                    setShowCancelModal(false);
+                    setPendingDestination(null);
+                  }}
                   className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-xl text-xs font-bold transition-all"
                 >
                   متابعة التوليد
