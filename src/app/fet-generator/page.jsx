@@ -369,6 +369,13 @@ export default function FetGeneratorPage() {
     }
   };
 
+  // Confirm cancel generation
+  const handleConfirmCancel = () => {
+    setShowCancelModal(false);
+    setIsGenerating(false);
+    setStep("upload");
+  };
+
   // Download helpers
   const downloadSingleFile = (content, filename, type = "text/xml;charset=utf-8") => {
     if (!content) return;
@@ -707,8 +714,8 @@ export default function FetGeneratorPage() {
             </div>
 
             <button
-              onClick={() => { setIsGenerating(false); setStep("upload"); }}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition-all"
+              onClick={() => setShowCancelModal(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all"
             >
               <XCircle size={14} />
               إلغاء التوليد
@@ -833,6 +840,37 @@ export default function FetGeneratorPage() {
           </div>
         )}
       </div>
+
+      {/* ── Cancel Confirmation Warning Modal ── */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl border border-red-100 text-center relative animate-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mx-auto mb-3 text-red-500">
+              <AlertTriangle size={26} className="sm:w-7 sm:h-7" />
+            </div>
+            <h4 className="font-extrabold text-sm sm:text-base text-gray-900 mb-1.5">
+              تأكيد إلغاء التوليد
+            </h4>
+            <p className="text-xs text-gray-600 mb-5 leading-relaxed">
+              هل أنت متأكد من رغبتك في إيقاف عملية التوليد الحالية والعودة لشاشة رفع الملف؟ ستفقد التقدم المحرز في هذه المحاولة.
+            </p>
+            <div className="flex items-center gap-2 justify-center">
+              <button
+                onClick={handleConfirmCancel}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
+              >
+                نعم، أوقف التوليد
+              </button>
+              <button
+                onClick={() => setShowCancelModal(false)}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-[#0F3D3E] py-2.5 rounded-xl text-xs font-extrabold transition-all active:scale-95"
+              >
+                متابعة
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Navbar />
     </div>
