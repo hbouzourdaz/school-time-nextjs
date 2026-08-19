@@ -912,7 +912,15 @@ export default function FetGeneratorPage() {
 
       </div>
 
-      <Navbar />
+      {/* Hide or protect Navbar during generation */}
+      <Navbar onNavigate={(href) => {
+        if (isGenerating) {
+          setPendingDestination(href);
+          setShowCancelModal(true);
+          return false;
+        }
+        return true;
+      }} />
     </div>
   );
 }

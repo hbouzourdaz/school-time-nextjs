@@ -197,13 +197,21 @@ const NAV_ITEMS = [
   { href: "/expert/login",  label: "الخبراء",  icon: User },
 ];
 
-export function Navbar() {
+export function Navbar({ onNavigate }) {
   const router = useRouter();
   const pathname = usePathname();
 
   const isActive = (href) => {
     if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
+  };
+
+  const handleItemClick = (href) => {
+    if (onNavigate) {
+      const shouldProceed = onNavigate(href);
+      if (shouldProceed === false) return;
+    }
+    router.push(href);
   };
 
   return (
@@ -213,7 +221,7 @@ export function Navbar() {
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = isActive(href);
           return (
-            <button key={href} onClick={() => router.push(href)}
+            <button key={href} onClick={() => handleItemClick(href)}
                     className="flex flex-col items-center gap-0.5 px-4 py-2 rounded-2xl transition-all btn-interactive"
                     style={{ color: active ? "#0F3D3E" : "#8A9188" }}>
               <div className="relative">
