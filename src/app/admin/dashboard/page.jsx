@@ -5,6 +5,7 @@ import {
   LogOut, ClipboardList, BarChart2, Settings, Users,
   Copy, Check, RefreshCw, Trash2, Upload, Plus, Eye, EyeOff, ArrowRight,
   CreditCard, Download, Clock, Wallet, XCircle, CheckCircle, UserCheck, UserX, Database,
+  Sparkles, Play
 } from "lucide-react";
 import {
   C_INK, C_INK_TEAL, C_PAPER, C_CLAY, C_SAGE_LINE, C_SUCCESS, C_OCHRE,
@@ -21,6 +22,7 @@ import { getNotificationsForAdmin, markAllReadForAdmin, getUnreadCountForAdmin }
 import {
   StatusBadge, SummaryRow, Modal, PrimaryButton, TextInput, Field, useToast, NotificationBell,
 } from "@/components/ui";
+import FetBookingGeneratorModal from "@/components/fet/FetBookingGeneratorModal";
 
 const tabs = [
   { key: "bookings", label: "الحجوزات",   icon: ClipboardList },
@@ -239,6 +241,7 @@ function BookingDetail({ booking: initial, onBack }) {
   const [rejecting, setRejecting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showFetModal, setShowFetModal] = useState(false);
 
   async function handleSave() {
     setSaving(true);
@@ -302,6 +305,29 @@ function BookingDetail({ booking: initial, onBack }) {
       <button onClick={onBack} className="text-base mb-4 flex items-center gap-1" style={{ color:"#8A9188" }}>
         <ArrowRight size={16} /> العودة للقائمة
       </button>
+
+      {/* ─── FET Generator Action Banner ─── */}
+      <div className="rounded-2xl p-4 sm:p-5 text-white mb-4 shadow-md flex flex-wrap items-center justify-between gap-3"
+           style={{ background: "linear-gradient(135deg, #0F3D3E 0%, #1B5E5F 100%)" }}>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-extrabold text-sm sm:text-base flex items-center gap-2">
+            <Sparkles size={18} className="text-amber-300 flex-shrink-0" />
+            توليد وتخصيص جدول الحجز بمحرك FET
+          </h3>
+          <p className="text-xs text-white/80 mt-1">
+            تخصيص القيود (تفريغات الأساتذة، القاعات، الحصص)، تشغيل المحرك الذكي، وطباعة الجداول PDF.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowFetModal(true)}
+          className="bg-white hover:bg-white/95 text-[#0F3D3E] font-extrabold px-4 py-2.5 rounded-xl text-xs transition-all shadow-sm active:scale-95 flex items-center gap-2 whitespace-nowrap"
+        >
+          <Play size={14} className="fill-[#0F3D3E]" />
+          فتح محرر وتوليد الجدول
+        </button>
+      </div>
+
       <div className="bg-white rounded-2xl p-5 mb-4" style={{ border:`1px solid ${C_SAGE_LINE}` }}>
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -490,6 +516,20 @@ function BookingDetail({ booking: initial, onBack }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* FET Generator Modal */}
+      {showFetModal && (
+        <FetBookingGeneratorModal
+          booking={booking}
+          onClose={() => setShowFetModal(false)}
+          onSaved={(updated) => {
+            setBooking(updated);
+            if (updated.final_files) setFinalFiles(updated.final_files);
+            if (updated.status) setStatus(updated.status);
+            toast.add("تم حفظ الجداول بنجاح في ملفات الحجز!", "success");
+          }}
+        />
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import {
   LogOut, RefreshCw, Building2, Trash2, Upload, AlertCircle, ArrowRight,
   CreditCard, Wallet, Check, Eye, Download, Image as ImageIcon, XCircle,
+  Sparkles, Play
 } from "lucide-react";
 import {
   C_INK, C_INK_TEAL, C_PAPER, C_SAGE_LINE, C_CLAY, C_SUCCESS, C_OCHRE,
@@ -17,6 +18,7 @@ import { getNotificationsForExpert, markAllReadForExpert, getUnreadCountForExper
 import {
   TextInput, PrimaryButton, StatusBadge, SummaryRow, Field, Card, useToast, NotificationBell,
 } from "@/components/ui";
+import FetBookingGeneratorModal from "@/components/fet/FetBookingGeneratorModal";
 
 export default function ExpertDashboardPage() {
   const router = useRouter();
@@ -300,6 +302,7 @@ function BookingDetail({ booking: initial, expert, onBack, onSaved }) {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [showFetModal, setShowFetModal] = useState(false);
 
   function addFinalFile(file) {
     if (!file) return;
@@ -364,6 +367,28 @@ function BookingDetail({ booking: initial, expert, onBack, onSaved }) {
         <button onClick={onBack} className="text-base mb-4 flex items-center gap-1" style={{ color: "#8A9188" }}>
           <ArrowRight size={16} /> العودة للقائمة
         </button>
+
+        {/* ─── FET Generator Action Banner ─── */}
+        <div className="rounded-2xl p-4 sm:p-5 text-white mb-4 shadow-md flex flex-wrap items-center justify-between gap-3"
+             style={{ background: "linear-gradient(135deg, #0F3D3E 0%, #1B5E5F 100%)" }}>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-extrabold text-sm sm:text-base flex items-center gap-2">
+              <Sparkles size={18} className="text-amber-300 flex-shrink-0" />
+              توليد وتخصيص جدول الحجز بمحرك FET
+            </h3>
+            <p className="text-xs text-white/80 mt-1">
+              تخصيص القيود (تفريغات الأساتذة، القاعات، الحصص)، تشغيل المحرك الذكي، وطباعة الجداول PDF.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowFetModal(true)}
+            className="bg-white hover:bg-white/95 text-[#0F3D3E] font-extrabold px-4 py-2.5 rounded-xl text-xs transition-all shadow-sm active:scale-95 flex items-center gap-2 whitespace-nowrap"
+          >
+            <Play size={14} className="fill-[#0F3D3E]" />
+            فتح محرر وتوليد الجدول
+          </button>
+        </div>
 
         <Card icon={Building2} title={booking.institution_name}
               subtitle={`كود الحجز: ${booking.code} · تاريخ الحجز: ${formatDate(booking.created_at)}`}>
@@ -542,6 +567,21 @@ function BookingDetail({ booking: initial, expert, onBack, onSaved }) {
               </div>
             </div>
           </div>
+        )}
+
+        {/* FET Generator Modal */}
+        {showFetModal && (
+          <FetBookingGeneratorModal
+            booking={booking}
+            onClose={() => setShowFetModal(false)}
+            onSaved={(updated) => {
+              setBooking(updated);
+              if (updated.final_files) setFinalFiles(updated.final_files);
+              if (updated.status) setStatus(updated.status);
+              onSaved(updated);
+              toast.add("تم حفظ الجداول بنجاح في ملفات الحجز!", "success");
+            }}
+          />
         )}
       </div>
     </div>
