@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight, Upload, FileText, Users, BookOpen, Home as HomeIcon,
   Layers, Play, RefreshCw, Download, Trash2, CheckCircle, AlertTriangle,
-  ChevronDown, ChevronUp, GraduationCap, DoorOpen, Clock, Eye, ExternalLink, Timer
+  ChevronDown, ChevronUp, GraduationCap, DoorOpen, Clock, Eye, ExternalLink, Timer,
+  XCircle, X
 } from "lucide-react";
 import { Navbar } from "@/components/ui";
 
@@ -121,6 +122,7 @@ export default function FetGeneratorPage() {
 
   // Solver
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const [engineError, setEngineError] = useState("");
   const [solvedTimetable, setSolvedTimetable] = useState(null);
   const [solverStats, setSolverStats] = useState(null);
@@ -129,6 +131,7 @@ export default function FetGeneratorPage() {
   const [softConflicts, setSoftConflicts] = useState("");
   const [engineOutput, setEngineOutput] = useState("");
   const [timeLimit, setTimeLimit] = useState(300);
+  const abortControllerRef = useRef(null);
 
   // View
   const [activeFilter, setActiveFilter] = useState("students");
@@ -249,6 +252,9 @@ export default function FetGeneratorPage() {
     const newRunId = Date.now().toString();
     setRunId(newRunId);
     
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setIsGenerating(true);
     setEngineError("");
     setSolvedTimetable(null);
@@ -260,6 +266,7 @@ export default function FetGeneratorPage() {
       const res = await fetch("/api/fet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           xmlContent: rawXml,
           timeLimit,
@@ -290,10 +297,33 @@ export default function FetGeneratorPage() {
         setStep("review");
       }
     } catch (err) {
-      setEngineError("فشل الاتصال بالخادم: " + (err.message || ""));
+      if (err.name === "AbortError") {
+        setEngineError("تم إلغاء عملية التوليد بواسطة المستخدم.");
+      } else {
+        setEngineError("فشل الاتصال بالخادم: " + (err.message || ""));
+      }
       setStep("review");
     } finally {
       setIsGenerating(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  /* ────── Cancel Generation Handler ────── */
+  const handleConfirmCancel = () => {
+    setShowCancelModal(false);
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setIsGenerating(false);
+    setStep("review");
+  };
+
+  const handleNavigationAttempt = (destinationUrl) => {
+    if (isGenerating) {
+      setShowCancelModal(true);
+    } else {
+      router.push(destinationUrl);
     }
   };
 
@@ -327,7 +357,7 @@ export default function FetGeneratorPage() {
            style={{ background: "linear-gradient(135deg, #0F3D3E 0%, #175253 100%)" }}>
         <div className="absolute inset-0 opacity-15"
              style={{ backgroundImage: "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.4) 0%, transparent 50%)" }} />
-        <button onClick={() => router.push("/")}
+        <button onClick={() => handleNavigationAttempt("/")}
                 className="absolute top-6 right-6 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all hover:bg-white/10 text-white border border-white/20">
           <ArrowRight size={14} /> العودة للرئيسية
         </button>
@@ -555,46 +585,95 @@ export default function FetGeneratorPage() {
 
         {/* ═══════════════ STEP 2.5 — Generating ═══════════════ */}
         {step === "generating" && parsedData && (
-          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-[#DCE2D6] shadow-sm">
+          <div className="flex flex-col items-center justify-center py-16 px-4 bg-white rounded-3xl border border-[#DCE2D6] shadow-sm relative overflow-hidden">
             <div className="relative mb-8">
-              <div className="w-24 h-24 rounded-full border-4 border-[#EDF2EE] flex items-center justify-center bg-white z-10 relative">
-                <RefreshCw size={40} className="text-[#3F7859] animate-spin" />
+              <div className="w-24 h-24 rounded-full border-4 border-[#EDF2EE] flex items-center justify-center bg-white z-10 relative shadow-inner">
+                <RefreshCw size={38} className="text-[#3F7859] animate-spin" />
               </div>
               <div className="absolute inset-0 rounded-full border-4 border-[#3F7859] animate-ping opacity-20"></div>
             </div>
             
-            <h2 className="text-2xl font-extrabold text-[#0F3D3E] mb-2">جاري توليد الجدول الزمني...</h2>
+            <h2 className="text-2xl font-extrabold text-[#0F3D3E] mb-2 text-center">جاري توليد الجدول الزمني...</h2>
             <p className="text-[#8A9188] mb-6 max-w-md text-center text-sm leading-relaxed">
-              يقوم محرك FET الآن بمعالجة <span className="font-bold text-[#0F3D3E]">{parsedData.activities.length} نشاطاً</span> وبناء الجدول الأمثل وفقاً للقيود الزمنية والمكانية المحددة.
+              يقوم محرك FET الآن بحساب القيود وتوزيع <span className="font-bold text-[#0F3D3E]">{parsedData.activities.length} نشاطاً</span> بأعلى كفاءة.
             </p>
 
             {/* Progress Bar */}
-            <div className="w-full max-w-md mb-8">
+            <div className="w-full max-w-md mb-6">
               <div className="flex justify-between text-xs font-bold text-[#3F7859] mb-2 px-1">
                 <span>الأنشطة المنجزة: {placedActivities} / {parsedData.activities.length}</span>
-                <span>{Math.min(100, Math.round((placedActivities / parsedData.activities.length) * 100))}%</span>
+                <span>{Math.min(100, Math.round((placedActivities / (parsedData.activities.length || 1)) * 100))}%</span>
               </div>
-              <div className="h-3 w-full bg-[#EDF2EE] rounded-full overflow-hidden">
+              <div className="h-3.5 w-full bg-[#EDF2EE] rounded-full overflow-hidden p-0.5 border border-[#DCE2D6]">
                 <div 
-                  className="h-full bg-[#3F7859] transition-all duration-500 ease-out"
-                  style={{ width: `${Math.min(100, Math.round((placedActivities / parsedData.activities.length) * 100))}%` }}
+                  className="h-full bg-gradient-to-l from-[#3F7859] to-[#2D5841] rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${Math.min(100, Math.round((placedActivities / (parsedData.activities.length || 1)) * 100))}%` }}
                 ></div>
               </div>
             </div>
 
-            <div className="bg-[#EDF7F2] border border-[#3F7859]/20 rounded-2xl px-8 py-4 flex items-center gap-4">
-              <Timer size={24} className="text-[#3F7859]" />
+            <div className="bg-[#EDF7F2] border border-[#3F7859]/20 rounded-2xl px-6 py-3.5 flex items-center gap-4 mb-8">
+              <Timer size={22} className="text-[#3F7859]" />
               <div>
                 <p className="text-[10px] font-bold text-[#3F7859] mb-0.5">الوقت المستغرق</p>
                 <p className="text-2xl font-mono font-extrabold text-[#0F3D3E] tracking-wider">{formatTime(elapsedSeconds)}</p>
               </div>
             </div>
+
+            {/* Cancel Button */}
+            <button
+              onClick={() => setShowCancelModal(true)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 hover:text-red-700 border border-red-200 transition-all shadow-sm hover:shadow"
+            >
+              <XCircle size={16} />
+              إلغاء عملية التوليد
+            </button>
             
             {timeLimit && (
-              <p className="text-[11px] text-[#8A9188] mt-6 font-semibold bg-gray-50 px-4 py-2 rounded-lg">
-                تم ضبط الحد الأقصى للوقت على {timeLimit} ثانية
+              <p className="text-[10px] text-[#8A9188] mt-6 font-semibold">
+                الحد الأقصى المسموح للوقت: {timeLimit} ثانية
               </p>
             )}
+          </div>
+        )}
+
+        {/* ═══════════════ Custom Confirmation Modal ═══════════════ */}
+        {showCancelModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-red-100 text-center relative animate-in zoom-in-95 duration-200">
+              <button 
+                onClick={() => setShowCancelModal(false)}
+                className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-all"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="w-16 h-16 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mx-auto mb-4 text-red-500 shadow-sm">
+                <AlertTriangle size={32} />
+              </div>
+
+              <h3 className="text-lg font-bold text-gray-900 mb-2">تحذير: إيقاف عملية الإنتاج</h3>
+              <p className="text-xs sm:text-sm text-gray-600 mb-6 leading-relaxed">
+                عملية توليد الجدول الزمني قيد التشغيل حالياً ({formatTime(elapsedSeconds)}).
+                <br />
+                <span className="font-bold text-red-600">إذا غادرت أو قمت بالإلغاء الآن سيتم إيقاف المحرك وفقدان التقدم الحالي.</span>
+              </p>
+
+              <div className="flex items-center gap-3 justify-center">
+                <button
+                  onClick={handleConfirmCancel}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg"
+                >
+                  نعم، أوقف التوليد
+                </button>
+                <button
+                  onClick={() => setShowCancelModal(false)}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-xl text-xs font-bold transition-all"
+                >
+                  متابعة التوليد
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
