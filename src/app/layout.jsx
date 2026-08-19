@@ -15,7 +15,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ar" dir="rtl" className={cairo.variable}>
+    <html lang="ar" dir="rtl" className={cairo.variable} suppressHydrationWarning>
       <body className={`${cairo.className} min-h-screen`} style={{ backgroundColor: "#F5F6F0" }} suppressHydrationWarning>
         <ToastProvider>{children}</ToastProvider>
       </body>
