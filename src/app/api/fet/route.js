@@ -93,8 +93,8 @@ export async function POST(req) {
       return Response.json({ success: false, error: "لم يتم إرسال محتوى الملف." }, { status: 400 });
     }
 
-    // Check that FET engine exists
-    if (!fs.existsSync(FET_CL_PATH)) {
+    // Check that FET engine exists (only check if it's an absolute path, like on Windows)
+    if (path.isAbsolute(FET_CL_PATH) && !fs.existsSync(FET_CL_PATH)) {
       return Response.json({
         success: false,
         error: `لم يتم العثور على محرك FET في المسار: ${FET_CL_PATH}`
