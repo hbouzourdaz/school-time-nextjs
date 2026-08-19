@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import {
   LogOut, RefreshCw, Building2, Trash2, Upload, AlertCircle, ArrowRight,
   CreditCard, Wallet, Check, Eye, Download, Image as ImageIcon, XCircle,
-  Sparkles, Play
+  Sparkles, Play, FileCode, FolderCheck
 } from "lucide-react";
 import {
   C_INK, C_INK_TEAL, C_PAPER, C_SAGE_LINE, C_CLAY, C_SUCCESS, C_OCHRE,

@@ -5,7 +5,7 @@ import {
   LogOut, ClipboardList, BarChart2, Settings, Users,
   Copy, Check, RefreshCw, Trash2, Upload, Plus, Eye, EyeOff, ArrowRight,
   CreditCard, Download, Clock, Wallet, XCircle, CheckCircle, UserCheck, UserX, Database,
-  Sparkles, Play
+  Sparkles, Play, FileCode, FolderCheck
 } from "lucide-react";
 import {
   C_INK, C_INK_TEAL, C_PAPER, C_CLAY, C_SAGE_LINE, C_SUCCESS, C_OCHRE,
