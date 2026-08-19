@@ -395,6 +395,128 @@ export default function FetGeneratorPage() {
 
   const currentStepNum = step === "upload" ? 1 : (step === "review" || step === "generating") ? 2 : 3;
 
+  /* ════════════════════════════════════════
+     1. ISOLATED FULL-SCREEN GENERATING VIEW
+     ════════════════════════════════════════ */
+  if (step === "generating" && parsedData) {
+    return (
+      <div className="fixed inset-0 z-50 bg-[#F5F6F0] flex flex-col items-center justify-center p-4 select-none" style={{ direction: "rtl" }}>
+        {/* Background Decorative Gradient */}
+        <div className="absolute inset-0 pointer-events-none opacity-40"
+             style={{ background: "radial-gradient(circle at 50% 30%, rgba(15,61,62,0.15) 0%, transparent 60%)" }} />
+
+        <div className="max-w-md w-full bg-white rounded-3xl p-8 sm:p-10 border border-[#DCE2D6] shadow-xl text-center relative z-10">
+          
+          {/* Animated Spinner & Pulse */}
+          <div className="relative mb-6 mx-auto w-24 h-24">
+            <div className="w-24 h-24 rounded-full border-4 border-[#EDF2EE] flex items-center justify-center bg-white z-10 relative shadow-inner">
+              <RefreshCw size={40} className="text-[#3F7859] animate-spin" />
+            </div>
+            <div className="absolute inset-0 rounded-full border-4 border-[#3F7859] animate-ping opacity-25"></div>
+          </div>
+
+          <h2 className="text-2xl font-extrabold text-[#0F3D3E] mb-2">جاري توليد الجدول الزمني</h2>
+          <p className="text-[#8A9188] text-xs sm:text-sm mb-6 leading-relaxed">
+            يقوم محرك FET بحساب التعارضات وتوزيع <span className="font-bold text-[#0F3D3E]">{parsedData.activities.length} نشاطاً</span> وفق أعلى المعايير.
+          </p>
+
+          {/* Real-time Progress Bar */}
+          <div className="w-full mb-6 text-right">
+            <div className="flex justify-between text-xs font-bold text-[#3F7859] mb-2 px-1">
+              <span>الأنشطة المنجزة: {placedActivities} / {parsedData.activities.length}</span>
+              <span className="font-mono">{Math.min(100, Math.round((placedActivities / (parsedData.activities.length || 1)) * 100))}%</span>
+            </div>
+            <div className="h-3 w-full bg-[#EDF2EE] rounded-full overflow-hidden p-0.5 border border-[#DCE2D6]">
+              <div 
+                className="h-full bg-gradient-to-l from-[#3F7859] to-[#2D5841] rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${Math.min(100, Math.round((placedActivities / (parsedData.activities.length || 1)) * 100))}%` }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Time Counter Badge */}
+          <div className="bg-[#EDF7F2] border border-[#3F7859]/20 rounded-2xl p-4 flex items-center justify-center gap-4 mb-8">
+            <Timer size={24} className="text-[#3F7859]" />
+            <div className="text-right">
+              <p className="text-[10px] font-bold text-[#3F7859]">الوقت المستغرق</p>
+              <p className="text-2xl font-mono font-extrabold text-[#0F3D3E] tracking-widest">{formatTime(elapsedSeconds)}</p>
+            </div>
+          </div>
+
+          {/* Cancel Button */}
+          <button
+            onClick={() => setShowCancelModal(true)}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 hover:text-red-700 border border-red-200 transition-all shadow-sm active:scale-95"
+          >
+            <XCircle size={16} />
+            إلغاء التوليد والعودة للبيانات
+          </button>
+
+          {timeLimit && (
+            <p className="text-[10px] text-[#8A9188] mt-4 font-semibold">
+              الحد الأقصى المسموح للوقت: {timeLimit} ثانية
+            </p>
+          )}
+        </div>
+
+        {/* ═══════════════ Custom Confirmation Modal ═══════════════ */}
+        {showCancelModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-red-100 text-center relative animate-in zoom-in-95 duration-200">
+              <button 
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setPendingDestination(null);
+                }}
+                className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-all"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="w-16 h-16 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mx-auto mb-4 text-red-500 shadow-sm">
+                <AlertTriangle size={32} />
+              </div>
+
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                {pendingDestination ? "تحذير: مغادرة الصفحة وإيقاف الإنتاج" : "تحذير: إيقاف عملية الإنتاج"}
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-600 mb-6 leading-relaxed">
+                عملية توليد الجدول الزمني قيد التشغيل حالياً ({formatTime(elapsedSeconds)}).
+                <br />
+                <span className="font-bold text-red-600">
+                  {pendingDestination
+                    ? "الانتقال لصفحة أخرى سيوقف عمل المحرك فوراً ويلغي كافة النتائج غير المحفوظة."
+                    : "إيقاف التوليد الآن سيؤدي إلى إلغاء المعالجة وفقدان التقدم الحالي."}
+                </span>
+              </p>
+
+              <div className="flex items-center gap-3 justify-center">
+                <button
+                  onClick={handleConfirmCancel}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg"
+                >
+                  {pendingDestination ? "نعم، غادر وأوقف التوليد" : "نعم، أوقف التوليد"}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCancelModal(false);
+                    setPendingDestination(null);
+                  }}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-xl text-xs font-bold transition-all"
+                >
+                  متابعة التوليد
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ════════════════════════════════════════
+     2. MAIN APPLICATION WORKFLOW (Upload, Review, Result)
+     ════════════════════════════════════════ */
   return (
     <div className="min-h-screen pb-24" style={{ backgroundColor: "#F5F6F0", direction: "rtl" }}>
 
@@ -629,108 +751,7 @@ export default function FetGeneratorPage() {
           </div>
         )}
 
-        {/* ═══════════════ STEP 2.5 — Generating ═══════════════ */}
-        {step === "generating" && parsedData && (
-          <div className="flex flex-col items-center justify-center py-16 px-4 bg-white rounded-3xl border border-[#DCE2D6] shadow-sm relative overflow-hidden">
-            <div className="relative mb-8">
-              <div className="w-24 h-24 rounded-full border-4 border-[#EDF2EE] flex items-center justify-center bg-white z-10 relative shadow-inner">
-                <RefreshCw size={38} className="text-[#3F7859] animate-spin" />
-              </div>
-              <div className="absolute inset-0 rounded-full border-4 border-[#3F7859] animate-ping opacity-20"></div>
-            </div>
-            
-            <h2 className="text-2xl font-extrabold text-[#0F3D3E] mb-2 text-center">جاري توليد الجدول الزمني...</h2>
-            <p className="text-[#8A9188] mb-6 max-w-md text-center text-sm leading-relaxed">
-              يقوم محرك FET الآن بحساب القيود وتوزيع <span className="font-bold text-[#0F3D3E]">{parsedData.activities.length} نشاطاً</span> بأعلى كفاءة.
-            </p>
 
-            {/* Progress Bar */}
-            <div className="w-full max-w-md mb-6">
-              <div className="flex justify-between text-xs font-bold text-[#3F7859] mb-2 px-1">
-                <span>الأنشطة المنجزة: {placedActivities} / {parsedData.activities.length}</span>
-                <span>{Math.min(100, Math.round((placedActivities / (parsedData.activities.length || 1)) * 100))}%</span>
-              </div>
-              <div className="h-3.5 w-full bg-[#EDF2EE] rounded-full overflow-hidden p-0.5 border border-[#DCE2D6]">
-                <div 
-                  className="h-full bg-gradient-to-l from-[#3F7859] to-[#2D5841] rounded-full transition-all duration-500 ease-out"
-                  style={{ width: `${Math.min(100, Math.round((placedActivities / (parsedData.activities.length || 1)) * 100))}%` }}
-                ></div>
-              </div>
-            </div>
-
-            <div className="bg-[#EDF7F2] border border-[#3F7859]/20 rounded-2xl px-6 py-3.5 flex items-center gap-4 mb-8">
-              <Timer size={22} className="text-[#3F7859]" />
-              <div>
-                <p className="text-[10px] font-bold text-[#3F7859] mb-0.5">الوقت المستغرق</p>
-                <p className="text-2xl font-mono font-extrabold text-[#0F3D3E] tracking-wider">{formatTime(elapsedSeconds)}</p>
-              </div>
-            </div>
-
-            {/* Cancel Button */}
-            <button
-              onClick={() => setShowCancelModal(true)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 hover:text-red-700 border border-red-200 transition-all shadow-sm hover:shadow"
-            >
-              <XCircle size={16} />
-              إلغاء عملية التوليد
-            </button>
-            
-            {timeLimit && (
-              <p className="text-[10px] text-[#8A9188] mt-6 font-semibold">
-                الحد الأقصى المسموح للوقت: {timeLimit} ثانية
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* ═══════════════ Custom Confirmation Modal ═══════════════ */}
-        {showCancelModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-red-100 text-center relative animate-in zoom-in-95 duration-200">
-              <button 
-                onClick={() => setShowCancelModal(false)}
-                className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-all"
-              >
-                <X size={18} />
-              </button>
-
-              <div className="w-16 h-16 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mx-auto mb-4 text-red-500 shadow-sm">
-                <AlertTriangle size={32} />
-              </div>
-
-              <h3 className="text-lg font-bold text-gray-900 mb-2">
-                {pendingDestination ? "تحذير: مغادرة الصفحة وإيقاف الإنتاج" : "تحذير: إيقاف عملية الإنتاج"}
-              </h3>
-              <p className="text-xs sm:text-sm text-gray-600 mb-6 leading-relaxed">
-                عملية توليد الجدول الزمني قيد التشغيل حالياً ({formatTime(elapsedSeconds)}).
-                <br />
-                <span className="font-bold text-red-600">
-                  {pendingDestination
-                    ? "الانتقال لصفحة أخرى سيوقف عمل المحرك فوراً ويلغي كافة النتائج غير المحفوظة."
-                    : "إيقاف التوليد الآن سيؤدي إلى إلغاء المعالجة وفقدان التقدم الحالي."}
-                </span>
-              </p>
-
-              <div className="flex items-center gap-3 justify-center">
-                <button
-                  onClick={handleConfirmCancel}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg"
-                >
-                  {pendingDestination ? "نعم، غادر وأوقف التوليد" : "نعم، أوقف التوليد"}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowCancelModal(false);
-                    setPendingDestination(null);
-                  }}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-xl text-xs font-bold transition-all"
-                >
-                  متابعة التوليد
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ═══════════════ STEP 3 — Result ═══════════════ */}
         {step === "result" && solvedTimetable && parsedData && (
