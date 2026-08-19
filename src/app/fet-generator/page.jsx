@@ -758,38 +758,33 @@ export default function FetGeneratorPage() {
           <div className="space-y-6">
 
             {/* Stats bar */}
-            <div className="bg-white rounded-2xl p-5 border border-[#DCE2D6] shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="bg-white rounded-2xl p-4 sm:p-5 border border-[#DCE2D6] shadow-sm">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="font-bold text-lg text-[#0F3D3E] flex items-center gap-2">
-                    <CheckCircle size={20} color="#3F7859" />
+                  <h3 className="font-black text-base sm:text-lg text-[#0F3D3E] flex items-center gap-2">
+                    <CheckCircle size={20} color="#3F7859" className="flex-shrink-0" />
                     تم التوليد بنجاح بواسطة محرك FET الحقيقي!
                   </h3>
                   <p className="text-xs text-[#8A9188] mt-1">
                     {parsedData.institution} — {solverStats?.scheduledSlots || 0} حصة مجدولة من أصل {solverStats?.totalActivities || 0}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                   {resultFetContent && (
-                    <button onClick={() => downloadFile(resultFetContent, fileName.replace(".fet", "_result.fet"))}
-                            className="bg-[#3F7859] hover:bg-[#2E5D43] text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5">
-                      <Download size={14} />
-                      تحميل النتيجة (.fet)
+                    <button onClick={() => downloadFile(resultFetContent, `${(parsedData.institution || "timetable").replace(/\s+/g, "_")}_data_and_timetable.fet`)}
+                            className="bg-[#3F7859] hover:bg-[#2E5D43] text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs">
+                      <Download size={13} />
+                      .fet
                     </button>
                   )}
-                  <button onClick={() => downloadFile(rawXml, fileName)}
-                          className="border border-[#0F3D3E] text-[#0F3D3E] hover:bg-[#0F3D3E] hover:text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5">
-                    <Download size={14} />
-                    الملف الأصلي
-                  </button>
                   <button onClick={() => { setStep("review"); setSolvedTimetable(null); }}
-                          className="border border-[#DCE2D6] text-[#8A9188] hover:text-[#0F3D3E] px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5">
-                    <Eye size={14} />
+                          className="border border-[#DCE2D6] text-[#8A9188] hover:text-[#0F3D3E] px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5">
+                    <Eye size={13} />
                     مراجعة البيانات
                   </button>
                   <button onClick={resetAll}
-                          className="border border-[#DCE2D6] text-[#8A9188] hover:text-red-600 hover:border-red-300 px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5">
-                    <Upload size={14} />
+                          className="border border-[#DCE2D6] text-[#8A9188] hover:text-red-600 hover:border-red-300 px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5">
+                    <Upload size={13} />
                     رفع ملف جديد
                   </button>
                 </div>
